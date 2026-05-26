@@ -10,9 +10,15 @@ This project, the Car Rental Management System (CRMS) for DriveEasy Rentals, is 
 The goal is to build a web-based system that centralizes and automates rental operations. The system will:
 
 -Manage vehicle inventory across all branches with real-time availability updates.
+
 -Store customer details and ensure only registered users can rent vehicles.
+
 -Allow staff and customers to create and manage reservations easily.
+
 -Support vehicle check-out and check-in, including mileage, fuel level, and damage tracking.
+
 -Automatically calculate rental charges, late fees, fuel charges, and damage fees.
+
 -Handle payments and prevent rentals for customers with high outstanding balances.
+
 -Provide reports for managers, such as revenue, fleet usage, and rental history.
