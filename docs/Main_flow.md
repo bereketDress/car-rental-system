@@ -9,7 +9,7 @@
 - Confirmation is shown
 ## Scenario 2: Vehicle Check-out Flow
 
-- Staff selects reservation
+- Staff selects a reservation
 - System verifies booking
 - Staff records mileage and fuel level
 - System updates vehicle status to “Rented”

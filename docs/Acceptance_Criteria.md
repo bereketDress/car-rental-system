@@ -1,7 +1,7 @@
 ## User Story 1: Vehicle reservation
 
 **Story:**
-As a customer, I want to reserve a vehicle,
+As a customer, I want to reserve a vehicle 
 so that I can rent it for a specific time.
 
 **Acceptance Criteria:**
@@ -13,7 +13,7 @@ so that I can rent it for a specific time.
 ## User Story 2: Vehicle check-out
 
 **Story:**
-As a staff member, I want to check out a vehicle,
+As a staff member, I want to check out a vehicle 
 so that I can hand it over to the customer.
 
 **Acceptance Criteria:**
@@ -33,5 +33,5 @@ so that I can complete the rental process.
 
 - Given the vehicle is currently rented
 - When the staff member records return mileage, fuel, and any damage
-- Then the system calculates charges, updates vehicle status to "Available",
+- Then the system calculates charges, updates the vehicle status to "Available",
   and closes the rental
