@@ -1,6 +1,6 @@
 # Main Scenario (Basic Flow)
 ## Scenario 1: Vehicle Reservation Flow
-- Customer logs into system
+- Customer logs into a system
 - Customer searches available vehicles
 - System shows available cars
 - Customer selects vehicle and dates
