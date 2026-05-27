@@ -1,36 +1,37 @@
-# User Story 1: Vehicle Reservation
+## User Story 1: Vehicle reservation
 
-Story: As a customer, I want to reserve a vehicle, so that I can rent it for a specific time.
+**Story:**
+As a customer, I want to reserve a vehicle,
+so that I can rent it for a specific time.
 
-## Acceptance Criteria:
+**Acceptance Criteria:**
 
-- User must be logged in
-- Vehicle must be available for selected dates
-- System confirms reservation successfully
-- Booking is saved in database
-- User receives confirmation message
+- Given the customer is logged in
+- When they select a vehicle and dates and click Confirm
+- Then the system saves the booking and shows a confirmation message
 
-# User Story 2: Vehicle Check-out
+## User Story 2: Vehicle check-out
 
-Story: As staff, I want to check-out a vehicle, so that I can hand it over to the customer.
+**Story:**
+As a staff member, I want to check out a vehicle,
+so that I can hand it over to the customer.
 
- Acceptance Criteria:
+**Acceptance Criteria:**
 
-- Reservation must exist
-- Vehicle status must be “Available”
-- System records starting mileage and fuel level
-- Vehicle status changes to “Rented”
-- Check-out time is saved
-  
- # User Story 3: Vehicle Check-in
+- Given a valid reservation exists
+- When the staff member enters mileage and fuel level and confirms
+- Then the system saves the check-out details and changes vehicle status to "Rented"
 
-Story: As staff, I want to check-in a vehicle, so that I can complete the rental process.
 
-Acceptance Criteria:
+## User Story 3: Vehicle check-in
 
-- Vehicle must be currently rented
-- System records return mileage and fuel level
-- Late fees are calculated if applicable
-- Damage fees added if needed
-- Vehicle status changes to “Available”
+**Story:**
+As a staff member, I want to check in a vehicle,
+so that I can complete the rental process.
 
+**Acceptance Criteria:**
+
+- Given the vehicle is currently rented
+- When the staff member records return mileage, fuel, and any damage
+- Then the system calculates charges, updates vehicle status to "Available",
+  and closes the rental
