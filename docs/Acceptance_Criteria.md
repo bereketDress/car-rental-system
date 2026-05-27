@@ -26,7 +26,7 @@ so that I can hand it over to the customer.
 ## User Story 3: Vehicle check-in
 
 **Story:**
-As a staff member, I want to check in a vehicle,
+As a staff member, I want to check in a vehicle 
 so that I can complete the rental process.
 
 **Acceptance Criteria:**
