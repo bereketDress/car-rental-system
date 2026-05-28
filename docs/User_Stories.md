@@ -20,4 +20,3 @@
 - As an admin, I want to manage vehicles, so I can maintain fleet data
 - As an admin, I want to manage customers, so I can control user accounts
 - As an admin, I want to manage branches, so I can keep location data up to date
-- As an admin, I want to generate reports, so I can analyze business performance
