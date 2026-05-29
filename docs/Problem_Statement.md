@@ -25,7 +25,7 @@ The system will retain information on all registered customers, including their
 name, address, phone number, email, and driver's license number. Only registered
 customers with a valid driver's license are allowed to make reservations and rent
 vehicles. Customers can make or cancel reservations online and view their booking
-history. The system will keep track of the outstanding balance owed by each
+history. The system will keep track of the outstanding balance (unpaid money) owed by each
 customer. No customer will be allowed to make a new reservation if they have an
 outstanding balance on their account.
 
