@@ -1,0 +1,34 @@
+import { useEffect, useState } from "react";
+import { damageService } from "../../services/api";
+import DamageTable from "../../components/damage/DamageTable";
+
+export default function DamagesPage() {
+    const [damages, setDamages] = useState([]);
+
+    const loadDamages = async () => {
+        const res = await damageService.listAll();
+        setDamages(res.data);
+    };
+
+    useEffect(() => {
+        loadDamages();
+    }, []);
+
+    const updateStatus = async (id, status) => {
+        await damageService.updateStatus(id, status);
+        loadDamages();
+    };
+
+    return (
+        <div className="p-6">
+            <h1 className="mb-6 text-3xl font-bold">
+                Damage Reports
+            </h1>
+
+            <DamageTable
+                damages={damages}
+                onStatusChange={updateStatus}
+            />
+        </div>
+    );
+}

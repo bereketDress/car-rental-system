@@ -1,28 +1,27 @@
-../../target/
-!finalProject/ass8/.mvn/wrapper/maven-wrapper.jar
+# Maven
+target/
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+# Kotlin
 .kotlin
 
-### IntelliJ IDEA ###
-finalProject/ass8/.idea/modules.xml
-finalProject/ass8/.idea/jarRepositories.xml
-finalProject/ass8/.idea/compiler.xml
-finalProject/ass8/.idea/libraries/
-*.iws
+# IntelliJ IDEA
+.idea/
 *.iml
 *.ipr
+*.iws
 
-### Eclipse ###
+# Eclipse
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
 
-### NetBeans ###
+# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -32,13 +31,21 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-finalProject/ass8/.vscode/
+# VS Code
+.vscode/
 
-### Mac OS ###
-.DS_Store
-
+# Environment files
+.env
+.env.*
 application-local.properties
 
-*.env
-.env
+# Logs
+*.log
+*.err.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+out/
