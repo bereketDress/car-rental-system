@@ -76,7 +76,7 @@ public class PaymentService {
                 .orElseGet(Payment::new);
 
         if (PAYMENT_COMPLETED.equalsIgnoreCase(paymentStatus(payment))) {
-            return payment;
+            throw new RuntimeException("Payment is already completed for this rental.");
         }
 
         set(payment, "rental", rental);
@@ -165,6 +165,11 @@ public class PaymentService {
 
     @Transactional
     public Payment recordPayment(Long rentalId, String paymentMethod, Long customerId) {
+        if ("CARD".equalsIgnoreCase(paymentMethod) || "CREDIT_CARD".equalsIgnoreCase(paymentMethod)
+                || "STRIPE".equalsIgnoreCase(paymentMethod)) {
+            throw new RuntimeException("Card payments must be completed with Stripe.");
+        }
+
         Rental rental = rentalService.getRental(rentalId);
 
         Customer customer = get(rental, "customer", Customer.class);
@@ -206,6 +211,26 @@ public class PaymentService {
         set(payment, "stripePaymentIntentId", stripePaymentIntentId);
         set(payment, "status", status);
         paymentRepository.save(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateCanCreateCardPayment(Long rentalId, Long customerId) {
+        Rental rental = rentalService.getRental(rentalId);
+
+        Customer customer = get(rental, "customer", Customer.class);
+        if (customerId != null && !customerId.equals(longValue(customer, "customerId"))) {
+            throw new RuntimeException("Customers can only pay their own rentals.");
+        }
+
+        if (!RENTAL_RETURNED.equalsIgnoreCase(string(rental, "status"))) {
+            throw new RuntimeException("Payment can only be created after the rental is returned.");
+        }
+
+        paymentRepository.findByRentalRentalId(rentalId)
+                .filter(payment -> PAYMENT_COMPLETED.equalsIgnoreCase(paymentStatus(payment)))
+                .ifPresent(payment -> {
+                    throw new RuntimeException("Payment is already completed for this rental.");
+                });
     }
 
     public void delete(Long id) {

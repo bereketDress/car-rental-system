@@ -59,14 +59,17 @@ function CardForm({ clientSecret, paymentIntentId, onPaid }) {
     );
 }
 
-export default function StripeCardPayment({ clientSecret, paymentIntentId, onPaid }) {
+export default function StripeCardPayment({ publishableKey, clientSecret, paymentIntentId, onPaid }) {
     const [stripe, setStripe] = useState(null);
     const [message, setMessage] = useState("");
 
     useEffect(() => {
-        paymentService.stripeConfig()
-            .then(({ data }) => {
-                const key = data.publishableKey;
+        const loadKey = publishableKey
+            ? Promise.resolve(publishableKey)
+            : paymentService.stripeConfig().then(({ data }) => data.publishableKey);
+
+        loadKey
+            .then((key) => {
                 if (!key || key.includes("xxx") || key.includes("ReplaceMe")) {
                     setMessage("Stripe key is not configured.");
                     return;
@@ -74,7 +77,7 @@ export default function StripeCardPayment({ clientSecret, paymentIntentId, onPai
                 setStripe(loadStripe(key));
             })
             .catch(() => setMessage("Could not load Stripe."));
-    }, []);
+    }, [publishableKey]);
 
     if (message) return <p className="mt-2 text-sm">{message}</p>;
     if (!stripe) return <p className="mt-2 text-sm">Loading card form...</p>;

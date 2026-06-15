@@ -80,6 +80,7 @@ public class RentalController {
 
         try {
             Float amount = paymentService.computeCharges(id, customerId);
+            paymentService.validateCanCreateCardPayment(id, customerId);
             PaymentIntent intent = stripeService.createPaymentIntent(amount);
             Payment payment = paymentService.createPendingPayment(id, intent.getId(), customerId);
             return ResponseEntity.ok(cardResponse(rental, payment, intent, amount));

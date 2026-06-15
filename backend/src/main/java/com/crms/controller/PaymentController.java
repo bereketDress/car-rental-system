@@ -55,6 +55,7 @@ public class PaymentController {
         try {
             Long rentalId = Long.parseLong(body.get("rentalId"));
             Long customerId = authenticatedCustomerId(authentication);
+            paymentService.validateCanCreateCardPayment(rentalId, customerId);
             Float amount = paymentService.computeCharges(rentalId, customerId);
             PaymentIntent intent = stripeService.createPaymentIntent(amount);
             Payment payment = paymentService.createPendingPayment(rentalId, intent.getId(), customerId);
