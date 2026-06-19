@@ -1,6 +1,6 @@
 import { useState } from "react";
 import StripeCardPayment from "../cardPayment/StripeCardPayment";
-import { paymentService } from "../../services/api";
+import { paymentService } from "../../services/paymentService";
 
 const isStaff = (role) => role === "STAFF" || role === "MANAGER";
 

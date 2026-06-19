@@ -5,7 +5,7 @@ export default function CarTable({cars, onEdit, onRemove,}) {
         <table className="w-full border">
             <thead>
             <tr>
-                <th>VIN</th>
+                <th>Car ID</th>
                 <th>Brand</th>
                 <th>Model</th>
                 <th>Status</th>
@@ -14,12 +14,9 @@ export default function CarTable({cars, onEdit, onRemove,}) {
             </thead>
 
             <tbody>
-            {cars.map((car) => {
-                const vinNumber = car.vinNumber || car.vinNo;
-
-                return (
-                <tr key={vinNumber}>
-                    <td>{vinNumber}</td>
+            {cars.map((car) => (
+                <tr key={car.carId}>
+                    <td>{car.carId}</td>
                     <td>{car.brand}</td>
 
                     <td>{car.model}</td>
@@ -34,15 +31,14 @@ export default function CarTable({cars, onEdit, onRemove,}) {
                             Edit
                         </button>
                         <button
-                            onClick={() => onRemove?.(vinNumber)}
+                            onClick={() => onRemove?.(car.carId)}
                             className="text-red-600"
                         >
                             Remove
                         </button>
                     </td>
                 </tr>
-                );
-            })}
+            ))}
             </tbody>
         </table>
     );

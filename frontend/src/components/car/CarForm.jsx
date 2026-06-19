@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
     //add/edit car form.
 
 const emptyCar = {
-    vinNumber: "",
     plateNumber: "",
     brand: "",
     model: "",
@@ -18,7 +17,6 @@ function toForm(car) {
     if (!car) return emptyCar;
 
     return {
-        vinNumber: car.vinNumber || car.vinNo || "",
         plateNumber: car.plateNumber || "",
         brand: car.brand || "",
         model: car.model || "",
@@ -56,14 +54,6 @@ export default function CarForm({ onSave, editingCar, onCancel }) {
 
     return (
         <form onSubmit={save} className="mb-6 grid gap-2 md:grid-cols-4">
-            <input
-                value={form.vinNumber}
-                onChange={(e) => updateField("vinNumber", e.target.value)}
-                placeholder="VIN"
-                className="border p-2"
-                required
-            />
-
             <input
                 value={form.plateNumber}
                 onChange={(e) => updateField("plateNumber", e.target.value)}

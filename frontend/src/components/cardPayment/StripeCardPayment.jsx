@@ -8,7 +8,7 @@ import {
     useElements,
     useStripe,
 } from "@stripe/react-stripe-js";
-import { paymentService } from "../../services/api";
+import { paymentService } from "../../services/paymentService";
 
 const cardStyle = { style: { base: { fontSize: "16px" } } };
 

@@ -1,14 +1,19 @@
 package com.crms.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.List;
-
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Reservation {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long reservationId;
@@ -16,25 +21,11 @@ public class Reservation {
     private LocalDate reservationDate;
     private LocalDate pickupDate;
     private String status;
+    @OneToOne
+    @JoinColumn(name="reservation_id")
+    private Rental rental;
 
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
+    @ManyToMany(mappedBy="reservations")
+    private List<Car> cars;
 
-    @ManyToOne
-    @JoinColumn(name = "staff_id")
-    private Staff staff;
-
-    @ManyToMany
-    @JoinTable(
-            name = "car_reservation",
-            joinColumns = @JoinColumn(name = "reservation_id"),
-            inverseJoinColumns = @JoinColumn(name = "car_id")
-    )
-    @JsonIgnore
-    private List<Car> reservationCars;
-
-    @OneToMany(mappedBy = "reservation")
-    @JsonIgnore
-    private List<Rental> rentals;
 }

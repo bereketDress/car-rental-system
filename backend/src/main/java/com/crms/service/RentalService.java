@@ -1,171 +1,217 @@
 package com.crms.service;
+
+import com.crms.dto.rental.check.CheckInRequest;
+import com.crms.dto.rental.check.CheckOutRequest;
+import com.crms.dto.rental.RentalResponse;
 import com.crms.model.*;
-import lombok.RequiredArgsConstructor;
-import com.crms.model.Car;
-import com.crms.model.Rental;
-import com.crms.model.Reservation;
 import com.crms.repository.CarRepository;
+import com.crms.repository.CustomerRepository;
 import com.crms.repository.DamageRepository;
 import com.crms.repository.RentalRepository;
+import com.crms.repository.ReservationRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
-
-import static com.crms.util.EntityFields.*;
-
 
 @Service
 @RequiredArgsConstructor
 public class RentalService {
 
     private final RentalRepository rentalRepository;
-    private final ReservationService reservationService;
+    private final ReservationRepository reservationRepository;
+    private final CustomerRepository customerRepository;
     private final CarRepository carRepository;
     private final DamageRepository damageRepository;
 
-    public List<Rental> getAll() { return withCharges(rentalRepository.findAll()); }
-
-    public Rental getRental(Long id) {
-        return withCharges(rentalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Rental not found: " + id)));
+    public List<RentalResponse> getAll() {
+        return rentalRepository.findAll().stream().map(this::toResponse).toList();
     }
 
-    public Rental checkOut(Long reservationId, Integer startMileage, LocalDate returnDate) {
-        return checkOut(reservationId, startMileage, returnDate, null);
+    public RentalResponse getRental(Long id) {
+        return toResponse(getRentalEntity(id));
     }
 
-    public Rental checkOut(Long reservationId, Integer startMileage, LocalDate returnDate, Long customerId) {
-        Rental existingRental = rentalRepository.findByReservationReservationId(reservationId).orElse(null);
-        if (existingRental != null) {
-            return withCharges(existingRental);
-        }
+    Rental getRentalEntity(Long id) {
+        return rentalRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Rental not found: " + id));
+    }
 
-        Reservation reservation = reservationService.getByIdWithDetails(reservationId);
+    public RentalResponse checkOut(CheckOutRequest request, Long customerId) {
+        Reservation reservation = reservationRepository.findById(request.reservationId())
+                .orElseThrow(() -> new RuntimeException("Reservation not found"));
 
-        Customer reservationCustomer = get(reservation, "customer", Customer.class);
-        if (customerId != null && !customerId.equals(longValue(reservationCustomer, "customerId"))) {
+        Customer customer = customerForReservation(reservation);
+        if (customerId != null && (customer == null || !customerId.equals(customer.getCustomerId()))) {
             throw new RuntimeException("Customers can only check out their own reservations.");
         }
 
-        if (RESERVATION_PENDING.equalsIgnoreCase(string(reservation, "status"))) {
-            reservation = reservationService.confirmReservation(longValue(reservation, "reservationId"));
-        }
-
-        if (!RESERVATION_CONFIRMED.equalsIgnoreCase(string(reservation, "status"))) {
-            throw new RuntimeException("Only PENDING or CONFIRMED reservations can be checked out.");
-        }
-
-        Car car = reservationCar(reservation);
+        Car car = carForReservation(reservation);
         if (car == null) throw new RuntimeException("No car assigned to reservation.");
 
-        setAvailable(car, false);
+        car.setAvailability("UNAVAILABLE");
         carRepository.save(car);
 
-        reservation = reservationService.convertReservation(longValue(reservation, "reservationId"));
-
         Rental rental = new Rental();
-        set(rental, "checkoutDate", LocalDate.now());
-        set(rental, "status", RENTAL_ACTIVE);
-        set(rental, "returnDate", returnDate);
-        set(rental, "startMileage", startMileage);
-        set(rental, "reservation", reservation);
-        set(rental, "customer", reservationCustomer);
-        set(rental, "car", car);
+        rental.setCheckoutDate(LocalDate.now());
+        rental.setReturnDate(request.returnDate());
+        rental.setStartMileage(request.startMileage());
+        rental.setStatus("ACTIVE");
 
-        return withCharges(rentalRepository.save(rental));
+        Rental saved = rentalRepository.save(rental);
+        reservation.setRental(saved);
+        reservation.setStatus("CONVERTED");
+        reservationRepository.save(reservation);
+
+        if (customer != null) {
+            if (customer.getRentals() == null) customer.setRentals(new ArrayList<>());
+            customer.getRentals().add(saved);
+            customerRepository.save(customer);
+        }
+
+        if (car.getRentals() == null) car.setRentals(new ArrayList<>());
+        car.getRentals().add(saved);
+        carRepository.save(car);
+
+        return toResponse(saved);
     }
 
-    public Rental checkIn(Long rentalId, Integer endMileage, String damageDescription, Float repairCost) {
-        return checkIn(rentalId, endMileage, damageDescription, repairCost, null);
-    }
+    public RentalResponse checkIn(CheckInRequest request, Long customerId) {
+        Rental rental = getRentalEntity(request.rentalId());
+        Customer customer = customerForRental(rental);
 
-    public Rental checkIn(Long rentalId, Integer endMileage, String damageDescription, Float repairCost, Long customerId) {
-        Rental rental = getRental(rentalId);
-
-        Customer rentalCustomer = get(rental, "customer", Customer.class);
-        if (customerId != null && !customerId.equals(longValue(rentalCustomer, "customerId"))) {
+        if (customerId != null && (customer == null || !customerId.equals(customer.getCustomerId()))) {
             throw new RuntimeException("Customers can only check in their own rentals.");
         }
 
-        if (!RENTAL_ACTIVE.equalsIgnoreCase(string(rental, "status"))) {
-            throw new RuntimeException("Only active rentals can be checked in.");
-        }
+        rental.setEndMileage(request.endMileage());
+        rental.setStatus("RETURNED");
 
-        set(rental, "endMileage", endMileage);
-        
-        LocalDate actualReturnDate = LocalDate.now();
-        LocalDate returnDate = date(rental, "returnDate");
-        if (returnDate != null && actualReturnDate.isAfter(returnDate)) {
-            long overdueDays = ChronoUnit.DAYS.between(returnDate, actualReturnDate);
-            Car rentalCar = get(rental, "car", Car.class);
-            Double dailyRate = rentalCar == null ? 0.0 : doubleValue(rentalCar, "dailyRate");
-            Customer customer = get(rental, "customer", Customer.class);
-            if (customer != null) {
-                Double currentBalance = doubleValue(customer, "outstandingBalance");
-                set(customer, "outstandingBalance", (currentBalance == null ? 0.0 : currentBalance) + overdueDays * dailyRate);
-            }
-        }
-        
-        set(rental, "status", RENTAL_RETURNED);
-
-        Car car = get(rental, "car", Car.class);
+        Car car = carForRental(rental);
         if (car != null) {
-            set(car, "mileage", endMileage);
+            car.setMileage(request.endMileage());
+            car.setAvailability("AVAILABLE");
             carRepository.save(car);
         }
 
-        Rental saved = rentalRepository.save(rental);
-
-        if (damageDescription != null && !damageDescription.isBlank()) {
+        if (request.damageDescription() != null && !request.damageDescription().isBlank()) {
             Damage damage = new Damage();
-            set(damage, "reportDate", LocalDate.now());
-            set(damage, "description", damageDescription);
-            set(damage, "repairCost", repairCost != null ? repairCost.doubleValue() : 0.0);
-            set(damage, "status", DAMAGE_REPORTED);
-            set(damage, "rental", saved);
-            damageRepository.save(damage);
+            damage.setReportDate(LocalDate.now());
+            damage.setDescription(request.damageDescription());
+            damage.setRepairCost(request.repairCost() == null ? 0.0F : request.repairCost());
+            damage.setStatus("REPORTED");
+
+            Damage savedDamage = damageRepository.save(damage);
+            if (rental.getDamage() == null) rental.setDamage(new ArrayList<>());
+            rental.getDamage().add(savedDamage);
         }
 
-        return withCharges(saved);
+        return toResponse(rentalRepository.save(rental));
     }
 
-    public List<Rental> listActive() {
-        return withCharges(rentalRepository.findByStatus(RENTAL_ACTIVE));
+    public List<RentalResponse> listByCustomer(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+
+        return (customer.getRentals() == null ? List.<Rental>of() : customer.getRentals())
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    public List<Rental> listOverdue() {
-        return withCharges(rentalRepository.findByStatus(RENTAL_ACTIVE).stream()
-                .filter(r -> {
-                    LocalDate returnDate = date(r, "returnDate");
-                    return returnDate != null && LocalDate.now().isAfter(returnDate);
-                })
-                .toList());
+    public boolean delete(Long id) {
+        rentalRepository.deleteById(id);
+        return true;
     }
 
-    public List<Rental> listByCustomer(Long custId) {
-        return withCharges(rentalRepository.findByCustomerCustomerId(custId));
+    float rentalCharge(Rental rental) {
+        return baseCharge(rental) + damageCharge(rental);
     }
 
-    public void delete(Long id) { rentalRepository.deleteById(id); }
-
-    private List<Rental> withCharges(List<Rental> rentals) {
-        return rentals.stream().map(this::withCharges).toList();
-    }
-
-    private Rental withCharges(Rental rental) {
-        if (rental == null) {
-            return null;
+    private float baseCharge(Rental rental) {
+        Car car = carForRental(rental);
+        if (car == null || rental.getCheckoutDate() == null || rental.getReturnDate() == null || car.getDailyRate() == null) {
+            return 0.0F;
         }
 
-        Long rentalId = longValue(rental, "rentalId");
-        if (rentalId != null) {
-            set(rental, "damages", damageRepository.findByRentalRentalId(rentalId));
-        }
+        long days = Math.max(1, ChronoUnit.DAYS.between(rental.getCheckoutDate(), rental.getReturnDate()));
+        return (float) (days * car.getDailyRate());
+    }
 
-        set(rental, "baseCharge", baseRentalCharge(rental));
-        set(rental, "damageRepairCost", damageRepairCost(rental));
-        set(rental, "totalCharge", rentalCharge(rental));
-        return rental;
+    private float damageCharge(Rental rental) {
+        if (rental.getDamage() == null) return 0.0F;
+
+        return (float) rental.getDamage().stream()
+                .map(Damage::getRepairCost)
+                .filter(cost -> cost != null && cost > 0)
+                .mapToDouble(Float::doubleValue)
+                .sum();
+    }
+
+    private RentalResponse toResponse(Rental rental) {
+        Car car = carForRental(rental);
+        Customer customer = customerForRental(rental);
+
+        RentalResponse.CarSummary carSummary = car == null ? null :
+                new RentalResponse.CarSummary(car.getCarId(), car.getBrand(), car.getModel(),
+                        car.getPlateNumber(), car.getCarType());
+
+        RentalResponse.CustomerSummary customerSummary = customer == null ? null :
+                new RentalResponse.CustomerSummary(customer.getCustomerId(), customer.getName());
+
+        return new RentalResponse(
+                rental.getRentalId(),
+                rental.getCheckoutDate(),
+                rental.getReturnDate(),
+                rental.getStartMileage(),
+                rental.getEndMileage(),
+                rental.getStatus(),
+                baseCharge(rental),
+                damageCharge(rental),
+                rentalCharge(rental),
+                carSummary,
+                customerSummary
+        );
+    }
+
+    private Customer customerForReservation(Reservation reservation) {
+        if (reservation == null || reservation.getReservationId() == null) return null;
+
+        return customerRepository.findAll().stream()
+                .filter(customer -> customer.getReservations() != null)
+                .filter(customer -> customer.getReservations().stream()
+                        .anyMatch(r -> reservation.getReservationId().equals(r.getReservationId())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Customer customerForRental(Rental rental) {
+        if (rental == null || rental.getRentalId() == null) return null;
+
+        return customerRepository.findAll().stream()
+                .filter(customer -> customer.getRentals() != null)
+                .filter(customer -> customer.getRentals().stream()
+                        .anyMatch(r -> rental.getRentalId().equals(r.getRentalId())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Car carForReservation(Reservation reservation) {
+        if (reservation == null || reservation.getCars() == null || reservation.getCars().isEmpty()) return null;
+        return reservation.getCars().get(0);
+    }
+
+    private Car carForRental(Rental rental) {
+        if (rental == null || rental.getRentalId() == null) return null;
+
+        return carRepository.findAll().stream()
+                .filter(car -> car.getRentals() != null)
+                .filter(car -> car.getRentals().stream()
+                        .anyMatch(r -> rental.getRentalId().equals(r.getRentalId())))
+                .findFirst()
+                .orElse(null);
     }
 }

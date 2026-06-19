@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import PaymentSection from "./PaymentSection";
-import { rentalService } from "../../services/api";
+import { rentalService } from "../../services/rentalService";
 
 const emptyForm = {
     endMileage: "",

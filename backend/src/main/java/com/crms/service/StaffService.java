@@ -1,74 +1,115 @@
 package com.crms.service;
-import com.crms.model.*;
-import com.crms.repository.BranchRepository;
-import lombok.RequiredArgsConstructor;
+
+import com.crms.dto.staff.StaffRequest;
+import com.crms.dto.staff.StaffResponse;
+import com.crms.model.Staff;
 import com.crms.repository.StaffRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
-import static com.crms.util.EntityFields.*;
+import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class StaffService {
 
     private final StaffRepository staffRepository;
-    private final BranchRepository branchRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public List<Staff> getAll() {
+    public List<StaffResponse> getAll() {
         return staffRepository.findAll().stream()
-                .filter(staff -> "STAFF".equalsIgnoreCase(string(staff, "role")))
+                .filter(staff -> "STAFF".equalsIgnoreCase(staff.getRole()))
+                .map(staff -> new StaffResponse(
+                        staff.getStaffId(),
+                        staff.getName(),
+                        staff.getRole(),
+                        staff.getEmail(),
+                        staff.getPhone(),
+                        Collections.emptyList(),
+                        Collections.emptyList()
+                ))
                 .toList();
     }
 
-    public Staff getById(Long id) {
-        return staffRepository.findById(id)
+    public StaffResponse getById(Long id) {
+        Staff staff = staffRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Staff not found: " + id));
+
+        return new StaffResponse(
+                staff.getStaffId(),
+                staff.getName(),
+                staff.getRole(),
+                staff.getEmail(),
+                staff.getPhone(),
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
     }
 
-    public Staff create(Staff staff) {
-        set(staff, "role", "STAFF");
-        encodePasswordIfPresent(staff);
-        attachBranch(staff);
-        return staffRepository.save(staff);
-    }
+    public StaffResponse create(StaffRequest request) {
+        Staff staff = new Staff();
+        staff.setName(request.name());
+        staff.setEmail(request.email());
+        staff.setPhone(request.phone());
+        staff.setPassword(request.password());
+        staff.setRole("STAFF");
 
-    public Staff update(Long id, Staff updated) {
-        Staff existing = getById(id);
-        set(existing, "name", string(updated, "name"));
-        set(existing, "role", "STAFF");
-        set(existing, "email", string(updated, "email"));
-        set(existing, "phone", string(updated, "phone"));
-        set(existing, "branch", get(updated, "branch"));
-        String password = string(updated, "password");
-        if (password != null && !password.isBlank()) {
-            set(existing, "password", passwordEncoder.encode(password));
-        }
-        attachBranch(existing);
-        return staffRepository.save(existing);
-    }
-
-    public void delete(Long id) {
-        staffRepository.deleteById(id); }
-
-    private void attachBranch(Staff staff) {
-        Branch branch = get(staff, "branch", Branch.class);
-        if (branch == null || branch.getBranchId() == null) {
-            set(staff, "branch", null);
-            return;
+        if (staff.getPassword() != null && !staff.getPassword().isBlank()) {
+            staff.setPassword(passwordEncoder.encode(staff.getPassword()));
         }
 
-        Long branchId = branch.getBranchId();
-        set(staff, "branch", branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId)));
+        Staff saved = staffRepository.save(staff);
+
+        return new StaffResponse(
+                saved.getStaffId(),
+                saved.getName(),
+                saved.getRole(),
+                saved.getEmail(),
+                saved.getPhone(),
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
     }
 
-    private void encodePasswordIfPresent(Staff staff) {
-        String password = string(staff, "password");
-        if (password != null && !password.isBlank()) {
-            set(staff, "password", passwordEncoder.encode(password));
+    public StaffResponse update(Long id, StaffRequest request) {
+
+        Staff existing = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found: " + id));
+
+        existing.setName(request.name());
+        existing.setRole("STAFF");
+        existing.setEmail(request.email());
+        existing.setPhone(request.phone());
+
+        if (request.password() != null &&
+                !request.password().isBlank()) {
+            existing.setPassword(
+                    passwordEncoder.encode(request.password())
+            );
         }
+
+        Staff saved = staffRepository.save(existing);
+
+        return new StaffResponse(
+                saved.getStaffId(),
+                saved.getName(),
+                saved.getRole(),
+                saved.getEmail(),
+                saved.getPhone(),
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
+    }
+
+    public boolean delete(Long id) {
+
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found: " + id));
+
+        staffRepository.delete(staff);
+
+        return true;
     }
 }

@@ -1,6 +1,7 @@
 package com.crms.controller;
 
-import com.crms.model.Car;
+import com.crms.dto.car.CarRequest;
+import com.crms.dto.car.CarResponse;
 import com.crms.service.ManagerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,23 +23,23 @@ public class ManagerController {
     }
 
     @GetMapping("/branches/{branchId}/vehicles")
-    public ResponseEntity<List<Car>> getInventory(@PathVariable Long branchId) {
+    public ResponseEntity<List<CarResponse>> getInventory(@PathVariable Long branchId) {
         return ResponseEntity.ok(managerService.getInventory(branchId));
     }
 
     @PostMapping("/branches/{branchId}/vehicles")
-    public ResponseEntity<Car> addVehicle(@PathVariable Long branchId, @RequestBody Car car) {
-        return ResponseEntity.ok(managerService.addCarToInventory(branchId, car));
+    public ResponseEntity<CarResponse> addVehicle(@PathVariable Long branchId, @RequestBody CarRequest request) {
+        return ResponseEntity.ok(managerService.addCarToInventory(branchId, request));
     }
 
-    @PutMapping("/vehicles/{vinNumber}")
-    public ResponseEntity<Car> updateVehicle(@PathVariable String vinNumber, @RequestBody Car car) {
-        return ResponseEntity.ok(managerService.updateCarInInventory(vinNumber, car));
+    @PutMapping("/vehicles/{carId}")
+    public ResponseEntity<CarResponse> updateVehicle(@PathVariable Long carId, @RequestBody CarRequest request) {
+        return ResponseEntity.ok(managerService.updateCarInInventory(carId, request));
     }
 
-    @DeleteMapping("/branches/{branchId}/vehicles/{vinNumber}")
-    public ResponseEntity<Void> removeVehicle(@PathVariable Long branchId, @PathVariable String vinNumber) {
-        managerService.removeCarFromInventory(branchId, vinNumber);
+    @DeleteMapping("/branches/{branchId}/vehicles/{carId}")
+    public ResponseEntity<Void> removeVehicle(@PathVariable Long branchId, @PathVariable Long carId) {
+        managerService.removeCarFromInventory(branchId, carId);
         return ResponseEntity.noContent().build();
     }
 }

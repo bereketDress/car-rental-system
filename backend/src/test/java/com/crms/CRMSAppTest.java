@@ -6,12 +6,22 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static com.crms.util.EntityFields.*;
-
-
 class CRMSAppTest {
+    private static final String SEEDED_PASSWORD = "Test1234";
+    private static final String SEEDED_PASSWORD_HASH =
+            "$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu";
+
+    @Test
+    void seededPasswordMatchesStoredBcryptHash() {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+        assertTrue(encoder.matches(SEEDED_PASSWORD, SEEDED_PASSWORD_HASH));
+    }
 
     @Test
     void branchAddressIsHandled() {
@@ -33,43 +43,43 @@ class CRMSAppTest {
     @Test
     void customerOutstandingBalanceIsDetected() {
         Customer customer = new Customer();
-        set(customer, "customerId", 1L);
-        set(customer, "name", "Test User");
-        set(customer, "outstandingBalance", 150.0);
+        customer.setCustomerId(1L);
+        customer.setName("Test User");
+        customer.setOutstandingBalance(150.0F);
 
-        assertTrue(doubleValue(customer, "outstandingBalance") > 0);
+        assertTrue(customer.getOutstandingBalance() > 0);
     }
 
     @Test
     void carAvailabilityLogicWorks() {
         Car car = new Car();
-        set(car, "vinNumber", "VIN123");
-        setAvailable(car, true);
+        car.setCarId(1L);
+        car.setAvailability("AVAILABLE");
 
-        assertTrue(available(car));
+        assertTrue(isAvailable(car));
 
-        setAvailable(car, false);
-        assertFalse(available(car));
+        car.setAvailability("UNAVAILABLE");
+        assertFalse(isAvailable(car));
     }
 
     @Test
     void reservationStatusTransitionsWork() {
         Reservation reservation = new Reservation();
-        set(reservation, "reservationId", 1L);
-        set(reservation, "status", "PENDING");
+        reservation.setReservationId(1L);
+        reservation.setStatus("PENDING");
 
-        set(reservation, "status", "CONFIRMED");
-        assertEquals("CONFIRMED", string(reservation, "status"));
+        reservation.setStatus("CONFIRMED");
+        assertEquals("CONFIRMED", reservation.getStatus());
 
-        set(reservation, "status", "CANCELLED");
-        assertEquals("CANCELLED", string(reservation, "status"));
+        reservation.setStatus("CANCELLED");
+        assertEquals("CANCELLED", reservation.getStatus());
     }
 
     @Test
     void reservationSerializationSkipsLazyCollections() throws Exception {
         Reservation reservation = new Reservation();
-        set(reservation, "reservationId", 1L);
-        set(reservation, "status", "PENDING");
+        reservation.setReservationId(1L);
+        reservation.setStatus("PENDING");
 
         ObjectMapper objectMapper = new ObjectMapper()
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
@@ -83,22 +93,13 @@ class CRMSAppTest {
     @Test
     void rentalSerializationSkipsBackReferenceCollections() throws Exception {
         Customer customer = new Customer();
-        set(customer, "customerId", 1L);
-        set(customer, "name", "Test User");
-
-        Car car = new Car();
-        set(car, "carId", 1L);
-        set(car, "vinNumber", "VIN123");
-
-        Reservation reservation = new Reservation();
-        set(reservation, "reservationId", 1L);
-        set(reservation, "status", "CONVERTED");
+        customer.setCustomerId(1L);
+        customer.setName("Test User");
 
         Rental rental = new Rental();
-        set(rental, "rentalId", 1L);
-        set(rental, "customer", customer);
-        set(rental, "car", car);
-        set(rental, "reservation", reservation);
+        rental.setRentalId(1L);
+        rental.setDamage(List.of(new Damage()));
+        rental.setPayment(new Payment());
 
         ObjectMapper objectMapper = new ObjectMapper()
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
@@ -107,8 +108,8 @@ class CRMSAppTest {
 
         assertFalse(json.contains("reservationCars"));
         assertFalse(json.contains("\"rentals\""));
-        assertFalse(json.contains("\"payment\""));
-        assertFalse(json.contains("\"damages\""));
+        assertTrue(json.contains("\"payment\""));
+        assertTrue(json.contains("\"damage\""));
     }
 
     @Test
@@ -118,26 +119,29 @@ class CRMSAppTest {
         branch.setName("Main Branch");
 
         Car car = new Car();
-        set(car, "carId", 1L);
-        set(car, "vinNumber", "VIN123");
-        set(car, "branch", branch);
+        car.setCarId(1L);
+        branch.setCars(List.of(car));
 
         ObjectMapper objectMapper = new ObjectMapper()
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
 
         String json = objectMapper.writeValueAsString(car);
 
-        assertFalse(json.contains("\"cars\""));
-        assertFalse(json.contains("\"staff\""));
+        assertFalse(json.contains("\"branch\""));
     }
 
     @Test
     void damageUpdateStatusWorks() {
         Damage damage = new Damage();
-        set(damage, "damageId", 1L);
-        set(damage, "status", "REPORTED");
+        damage.setDamageId(1L);
+        damage.setStatus("REPORTED");
 
-        set(damage, "status", "REPAIRED");
-        assertEquals("REPAIRED", string(damage, "status"));
+        damage.setStatus("REPAIRED");
+        assertEquals("REPAIRED", damage.getStatus());
+    }
+
+    private boolean isAvailable(Car car) {
+        return "AVAILABLE".equalsIgnoreCase(car.getAvailability())
+                || "TRUE".equalsIgnoreCase(car.getAvailability());
     }
 }

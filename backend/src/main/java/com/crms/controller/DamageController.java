@@ -1,6 +1,6 @@
 package com.crms.controller;
 
-import com.crms.model.Damage;
+import com.crms.dto.damage.DamageResponse;
 import com.crms.service.DamageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,12 +17,12 @@ public class DamageController {
     private final DamageService damageService;
 
     @GetMapping
-    public ResponseEntity<List<Damage>> listAll() {
+    public ResponseEntity<List<DamageResponse>> listAll() {
         return ResponseEntity.ok(damageService.getAll());
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Damage> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<DamageResponse> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(damageService.updateStatus(id, body.get("status")));
     }
 }

@@ -7,11 +7,11 @@ export default function HomePage() {
     const features = [
         {
             title: "Wide Selection",
-            text: "Choose from economy to luxury cars.",
+            text: "choose from economy to luxury cars.",
         },
         {
             title: "Easy Booking",
-            text: "Reserve your car in just a few clicks.",
+            text: "reserve your car in just a few clicks.",
         },
         {
             title: "Reliable Service",

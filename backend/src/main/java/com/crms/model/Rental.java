@@ -1,15 +1,18 @@
 package com.crms.model;
-
-import com.crms.model.Reservation;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.List;
-
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Rental {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long rentalId;
@@ -19,33 +22,13 @@ public class Rental {
     private Integer startMileage;
     private Integer endMileage;
     private String status;
+    private Float baseCharge;
 
-    @Transient
-    private Double baseCharge;
+    @OneToMany
+    @JoinColumn(name="rental_id")
+    private List<Damage>damage;
 
-    @Transient
-    private Double damageRepairCost;
-
-    @Transient
-    private Double totalCharge;
-
-    @ManyToOne
-    @JoinColumn(name = "reservation_id")
-    private Reservation reservation;
-
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
-
-    @ManyToOne
-    @JoinColumn(name = "car_id")
-    private Car car;
-
-    @OneToOne(mappedBy = "rental")
-    @JsonIgnore
+    @OneToOne
+    @JoinColumn(name = "rental_id")
     private Payment payment;
-
-    @OneToMany(mappedBy = "rental")
-    @JsonIgnore
-    private List<Damage> damages;
 }

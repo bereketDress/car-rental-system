@@ -1,13 +1,13 @@
 package com.crms.service;
-import com.crms.dto.CarDTO.CarResponse;
-import com.crms.model.Branch;
-import lombok.RequiredArgsConstructor;
+
+import com.crms.dto.car.CarRequest;
+import com.crms.dto.car.CarResponse;
 import com.crms.model.Car;
 import com.crms.repository.CarRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
-import static com.crms.util.EntityFields.*;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -15,80 +15,93 @@ public class CarService {
 
     private final CarRepository carRepository;
 
-    public List<Car> listAll() { return carRepository.findAll(); }
-
-    public List<CarResponse> listAllResponses() {
-        return listAll().stream().map(this::toResponse).toList();
-    }
-
-    public Car getCar(String vinNumber) {
-        return carRepository.findByVinNumber(vinNumber)
-                .orElseThrow(() -> new RuntimeException("Car not found: " + vinNumber));
-    }
-
-    public boolean isAvailable(String vinNumber) {
-        Car car = getCar(vinNumber);
-        return available(car);
-    }
-
-    public List<Car> searchAvailable(String carType) {
-        return carRepository.findAll().stream()
-                .filter(car -> available(car))
-                .filter(c -> carType == null || carType.isBlank()
-                        || carType.equalsIgnoreCase(string(c, "carType")))
+    public List<CarResponse> listAll() {
+        return carRepository.findAll()
+                .stream()
+                .map(this::carResponse)
                 .toList();
     }
 
+    public List<CarResponse> listAllResponses() {
+        return listAll();
+    }
+
     public List<CarResponse> searchAvailableResponses(String carType) {
-        return searchAvailable(carType).stream().map(this::toResponse).toList();
+        return carRepository.findAll().stream()
+                .filter(this::available)
+                .filter(car -> carType == null || carType.isBlank()
+                        || carType.equalsIgnoreCase(car.getCarType()))
+                .map(this::carResponse)
+                .toList();
     }
 
-    public Car addCar(Car car) {
-        setAvailable(car, true);
-        return carRepository.save(car);
+    public CarResponse addCar(CarRequest request) {
+        Car car = new Car();
+
+        car.setPlateNumber(request.plateNumber());
+        car.setBrand(request.brand());
+        car.setModel(request.model());
+        car.setYear(request.year());
+        car.setMileage(request.mileage());
+        car.setDailyRate(request.dailyRate().doubleValue());
+        car.setCarType(request.carType());
+        car.setAvailability("AVAILABLE");
+
+        return carResponse(carRepository.save(car));
     }
 
-    public Car updateAvailability(String vinNumber, boolean availability) {
-        Car car = getCar(vinNumber);
-        setAvailable(car, availability);
-        return carRepository.save(car);
+    public CarResponse updateCar(Long id, CarRequest request) {
+        Car car = getCarEntity(id);
+
+        car.setPlateNumber(request.plateNumber());
+        car.setBrand(request.brand());
+        car.setModel(request.model());
+        car.setYear(request.year());
+        car.setMileage(request.mileage());
+        car.setDailyRate(request.dailyRate().doubleValue());
+        car.setCarType(request.carType());
+        car.setAvailability(request.availability());
+
+        return carResponse(carRepository.save(car));
     }
 
-    public Car updateCar(String vinNumber, Car updated) {
-        Car existing = getCar(vinNumber);
-        set(existing, "brand", string(updated, "brand"));
-        set(existing, "model", string(updated, "model"));
-        set(existing, "plateNumber", string(updated, "plateNumber"));
-        set(existing, "year", integer(updated, "year"));
-        set(existing, "mileage", integer(updated, "mileage"));
-        set(existing, "availability", string(updated, "availability"));
-        set(existing, "dailyRate", doubleValue(updated, "dailyRate"));
-        set(existing, "carType", string(updated, "carType"));
-        set(existing, "branch", get(updated, "branch"));
-        return carRepository.save(existing);
+    public CarResponse updateAvailability(Long id, boolean available) {
+        Car car = getCarEntity(id);
+
+        car.setAvailability(available ? "AVAILABLE" : "UNAVAILABLE");
+
+        return carResponse(carRepository.save(car));
     }
 
-    public boolean deleteCar(String vinNumber) {
-        carRepository.delete(getCar(vinNumber));
+    public boolean deleteCar(Long id) {
+        carRepository.deleteById(id);
         return true;
     }
 
-    public CarResponse toResponse(Car car) {
-        Branch branch = get(car, "branch", Branch.class);
+    Car getCarEntity(Long id) {
+        return carRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Car not found: " + id));
+    }
+
+    private boolean available(Car car) {
+        return "AVAILABLE".equalsIgnoreCase(car.getAvailability())
+                || "TRUE".equalsIgnoreCase(car.getAvailability());
+    }
+
+    private CarResponse carResponse(Car car) {
         return new CarResponse(
-                longValue(car, "carId"),
-                string(car, "vinNumber"),
-                string(car, "plateNumber"),
-                string(car, "brand"),
-                string(car, "model"),
-                integer(car, "year"),
-                integer(car, "mileage"),
+                car.getCarId(),
+                car.getPlateNumber(),
+                car.getBrand(),
+                car.getModel(),
+                car.getYear(),
+                car.getMileage(),
                 available(car),
-                string(car, "availability"),
-                doubleValue(car, "dailyRate"),
-                string(car, "carType"),
-                branch == null ? null : branch.getBranchId(),
-                branch == null ? null : branch.getName()
+                car.getAvailability(),
+                car.getDailyRate(),
+                car.getCarType(),
+                null,
+                null
         );
     }
 }

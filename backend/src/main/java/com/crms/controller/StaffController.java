@@ -1,6 +1,7 @@
 package com.crms.controller;
 
-import com.crms.model.Staff;
+import com.crms.dto.staff.StaffRequest;
+import com.crms.dto.staff.StaffResponse;
 import com.crms.service.StaffService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,18 +17,18 @@ public class StaffController {
     private final StaffService staffService;
 
     @GetMapping
-    public ResponseEntity<List<Staff>> listAll() {
+    public ResponseEntity<List<StaffResponse>> listAll() {
         return ResponseEntity.ok(staffService.getAll());
     }
 
     @PostMapping
-    public ResponseEntity<Staff> create(@RequestBody Staff staff) {
-        return ResponseEntity.ok(staffService.create(staff));
+    public ResponseEntity<StaffResponse> create(@RequestBody StaffRequest request) {
+        return ResponseEntity.ok(staffService.create(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Staff> update(@PathVariable Long id, @RequestBody Staff staff) {
-        return ResponseEntity.ok(staffService.update(id, staff));
+    public ResponseEntity<StaffResponse> update(@PathVariable Long id, @RequestBody StaffRequest request) {
+        return ResponseEntity.ok(staffService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

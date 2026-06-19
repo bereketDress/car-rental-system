@@ -15,7 +15,7 @@ export default function CarGrid({ cars, onReserve, reserveDisabled }) {
         <div className="grid gap-4 md:grid-cols-3">
             {cars.map((car) => (
                 <CarCard
-                    key={car.vinNumber || car.vinNo}
+                    key={car.carId}
                     car={car}
                     onReserve={onReserve}
                     disabled={reserveDisabled}

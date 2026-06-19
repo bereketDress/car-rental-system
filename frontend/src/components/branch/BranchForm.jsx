@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { branchService } from "../../services/api";
+import { branchService } from "../../services/branchService";
 
 const empty = {
     name: "",
-    location: "",
     phone: "",
+    city: "",
+    street: "",
+    zipcode: "",
 };
 
 export default function BranchForm({editing, reload, clearEdit,}) {
     const [form, setForm] = useState(empty);
 
     useEffect(() => {
-        setForm(editing || empty);
+        setForm(editing ? { ...empty, ...editing } : empty);
     }, [editing]);
 
     const save = async (e) => {
@@ -29,7 +31,7 @@ export default function BranchForm({editing, reload, clearEdit,}) {
     };
 
     return (
-        <form onSubmit={save} className="mb-6 flex gap-2">
+        <form onSubmit={save} className="mb-6 grid gap-2 md:grid-cols-5">
             <input
                 className="border p-2"
                 placeholder="Name"
@@ -41,10 +43,37 @@ export default function BranchForm({editing, reload, clearEdit,}) {
 
             <input
                 className="border p-2"
-                placeholder="Location"
-                value={form.location}
+                placeholder="Phone"
+                value={form.phone}
                 onChange={(e) =>
-                    setForm({ ...form, location: e.target.value })
+                    setForm({ ...form, phone: e.target.value })
+                }
+            />
+
+            <input
+                className="border p-2"
+                placeholder="City"
+                value={form.city}
+                onChange={(e) =>
+                    setForm({ ...form, city: e.target.value })
+                }
+            />
+
+            <input
+                className="border p-2"
+                placeholder="Street"
+                value={form.street}
+                onChange={(e) =>
+                    setForm({ ...form, street: e.target.value })
+                }
+            />
+
+            <input
+                className="border p-2"
+                placeholder="Zipcode"
+                value={form.zipcode}
+                onChange={(e) =>
+                    setForm({ ...form, zipcode: e.target.value })
                 }
             />
 

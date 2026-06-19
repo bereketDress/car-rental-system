@@ -1,19 +1,21 @@
 package com.crms.controller;
+
+import com.crms.config.StripeConfig;
+import com.crms.dto.payment.PaymentRequest;
+import com.crms.dto.payment.PaymentResponse;
+import com.crms.service.PaymentService;
+import com.crms.service.StripeService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import lombok.RequiredArgsConstructor;
-import com.crms.config.StripeConfig;
-import com.crms.model.Payment;
-import com.crms.service.PaymentService;
-import com.crms.service.StripeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.Map;
 
-import static com.crms.util.EntityFields.longValue;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -25,54 +27,53 @@ public class PaymentController {
     private final StripeConfig stripeConfig;
 
     @GetMapping
-    public ResponseEntity<?> listAll(Authentication authentication) {
-        Long customerId = authenticatedCustomerId(authentication);
-        if (customerId != null) {
-            return ResponseEntity.ok(paymentService.listByCustomer(customerId));
-        }
-        return ResponseEntity.ok(paymentService.getAll());
+    public List<PaymentResponse> all(Authentication auth) {
+        Long customerId = authenticatedCustomerId(auth);
+        return customerId == null
+                ? paymentService.getAll()
+                : paymentService.listByCustomer(customerId);
     }
 
     @PostMapping("/record")
-    public ResponseEntity<Payment> record(@RequestBody Map<String, String> body, Authentication authentication) {
-        return ResponseEntity.ok(paymentService.recordPayment(
-                Long.parseLong(body.get("rentalId")),
-                body.getOrDefault("paymentMethod", "CASH"),
-                authenticatedCustomerId(authentication)
-        ));
+    public PaymentResponse record(@RequestBody Map<String, String> body, Authentication auth) {
+        return paymentService.recordPayment(
+                paymentRequest(body),
+                authenticatedCustomerId(auth)
+        );
     }
 
     @PostMapping("/process")
-    public ResponseEntity<Payment> process(@RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(paymentService.recordPayment(
-                Long.parseLong(body.get("rentalId")),
-                body.getOrDefault("paymentMethod", "CASH")
-        ));
+    public PaymentResponse process(@RequestBody Map<String, String> body) {
+        return paymentService.recordPayment(
+                paymentRequest(body),
+                null
+        );
     }
 
     @PostMapping("/create-intent")
-    public ResponseEntity<?> createIntent(@RequestBody Map<String, String> body, Authentication authentication) {
+    public Map<String, Object> createIntent(@RequestBody Map<String, String> body, Authentication auth) {
         try {
             Long rentalId = Long.parseLong(body.get("rentalId"));
-            Long customerId = authenticatedCustomerId(authentication);
+            Long customerId = authenticatedCustomerId(auth);
             paymentService.validateCanCreateCardPayment(rentalId, customerId);
-            Float amount = paymentService.computeCharges(rentalId, customerId);
+            Float amount = paymentService.computeCharges(rentalId, customerId).amount();
             PaymentIntent intent = stripeService.createPaymentIntent(amount);
-            Payment payment = paymentService.createPendingPayment(rentalId, intent.getId(), customerId);
-            return ResponseEntity.ok(Map.of(
+            PaymentResponse payment = paymentService.createPendingPayment(rentalId, intent.getId(), customerId);
+
+            return Map.of(
                     "publishableKey", stripeConfig.getPublishableKey(),
                     "clientSecret", intent.getClientSecret(),
                     "paymentIntentId", intent.getId(),
                     "amount", amount,
-                    "paymentId", longValue(payment, "paymentId")
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+                    "paymentId", payment.paymentId()
+            );
+        } catch (StripeException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to create Stripe payment intent");
         }
     }
 
     @PostMapping("/confirm-card")
-    public ResponseEntity<?> confirmCard(@RequestBody Map<String, String> body, Authentication authentication) {
+    public Map<String, String> confirmCard(@RequestBody Map<String, String> body, Authentication auth) {
         String paymentIntentId = body.get("paymentIntentId");
         try {
             PaymentIntent intent = stripeService.retrievePaymentIntent(paymentIntentId);
@@ -80,18 +81,35 @@ public class PaymentController {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Card payment has not succeeded");
             }
 
-            paymentService.markPaid(intent.getId(), authenticatedCustomerId(authentication));
-            return ResponseEntity.ok(Map.of("status", "COMPLETED"));
+            paymentService.markPaid(intent.getId(), authenticatedCustomerId(auth));
+            return Map.of("status", "COMPLETED");
         } catch (StripeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to confirm Stripe payment");
         }
+    }
+
+    @PostMapping("/webhook")
+    public ResponseEntity<Void> webhook(@RequestBody Map<String, Object> body) {
+        String type = (String) body.get("type");
+        Object dataObject = body.get("data");
+        if (dataObject instanceof Map<?, ?> data && data.get("object") instanceof Map<?, ?> object) {
+            Object intentId = object.get("id");
+            if (intentId instanceof String id) {
+                if ("payment_intent.succeeded".equals(type)) {
+                    paymentService.markPaid(id);
+                } else if ("payment_intent.payment_failed".equals(type)) {
+                    paymentService.markFailed(id);
+                }
+            }
+        }
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/record-card")
     public ResponseEntity<Map<String, String>> recordCard() {
         throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Card payments must be completed with Stripe. Use /api/payments/create-intent, confirm with Stripe.js, then call /api/payments/confirm-card."
+                "Card payments must be completed with Stripe."
         );
     }
 
@@ -109,19 +127,12 @@ public class PaymentController {
         return null;
     }
 
-    @PostMapping("/webhook")
-    public ResponseEntity<?> handleWebhook(@RequestBody Map<String, Object> body) {
-        // Simple mock webhook handler
-        String type = (String) body.get("type");
-        Map<String, Object> data = (Map<String, Object>) body.get("data");
-        Map<String, Object> object = (Map<String, Object>) data.get("object");
-        String intentId = (String) object.get("id");
-
-        if ("payment_intent.succeeded".equals(type)) {
-            paymentService.markPaid(intentId);
-        } else if ("payment_intent.payment_failed".equals(type)) {
-            paymentService.markFailed(intentId);
-        }
-        return ResponseEntity.ok().build();
+    private PaymentRequest paymentRequest(Map<String, String> body) {
+        return new PaymentRequest(
+                Long.parseLong(body.get("rentalId")),
+                null,
+                null,
+                body.getOrDefault("paymentMethod", "CASH")
+        );
     }
 }

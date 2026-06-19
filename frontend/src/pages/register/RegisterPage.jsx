@@ -17,9 +17,7 @@ const emptyForm = {
     address: {
         street: "",
         city: "",
-        state: "",
         zipcode: "",
-        country: "",
     },
 };
 
@@ -54,9 +52,7 @@ export default function RegisterPage() {
                 licenseNumber: form.licenseNumber,
                 street: form.address.street,
                 city: form.address.city,
-                state: form.address.state,
                 zipcode: form.address.zipcode,
-                country: form.address.country,
             };
 
             await register(payload);
@@ -134,7 +130,7 @@ export default function RegisterPage() {
                     className={`${inputClass} md:col-span-2`}
                 />
 
-                {["city", "state", "zipcode", "country"].map((field) => (
+                {["city", "zipcode"].map((field) => (
                     <input
                         key={field}
                         name={`address.${field}`}

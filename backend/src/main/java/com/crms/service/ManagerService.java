@@ -1,146 +1,181 @@
 package com.crms.service;
-import com.crms.model.*;
+
+import com.crms.dto.car.CarRequest;
+import com.crms.dto.car.CarResponse;
+import com.crms.dto.manager.ManagerRequest;
+import com.crms.dto.manager.ManagerResponse;
+import com.crms.model.Branch;
+import com.crms.model.Car;
+import com.crms.model.Manager;
+import com.crms.repository.BranchRepository;
+import com.crms.repository.CarRepository;
+import com.crms.repository.ManagerRepository;
 import lombok.RequiredArgsConstructor;
-import com.crms.repository.*;
 import org.springframework.stereotype.Service;
-import java.util.Collections;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.crms.util.EntityFields.*;
 
 @Service
 @RequiredArgsConstructor
 public class ManagerService {
 
     private final ManagerRepository managerRepository;
-    private final RentalRepository rentalRepository;
-    private final PaymentRepository paymentRepository;
-    private final CarRepository carRepository;
-    private final CustomerRepository customerRepository;
     private final BranchRepository branchRepository;
+    private final CarRepository carRepository;
 
-    public List<Manager> getAll() {
-        return managerRepository.findAll();
+    public List<ManagerResponse> getAll() {
+        return managerRepository.findAll()
+                .stream()
+                .map(this::toManagerResponse)
+                .toList();
     }
 
-    public Manager getById(Long id) {
-        return managerRepository.findById(id)
+    public ManagerResponse getById(Long id) {
+        Manager manager = managerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Manager not found: " + id));
+        return toManagerResponse(manager);
     }
 
-    public Manager create(Manager manager) {
-        return managerRepository.save(manager);
+    public ManagerResponse create(ManagerRequest request) {
+        Manager manager = new Manager();
+        manager.setName(request.name());
+        manager.setEmail(request.email());
+        manager.setPhone(request.phone());
+        manager.setPassword(request.password());
+        return toManagerResponse(managerRepository.save(manager));
     }
 
-    public void delete(Long id) {
+    public boolean delete(Long id) {
         managerRepository.deleteById(id);
+        return true;
     }
+
+    // -----------------------------
+    // BASIC INVENTORY MANAGEMENT
+    // -----------------------------
+
+    public List<CarResponse> getInventory(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
+
+        return (branch.getCars() == null ? List.<Car>of() : branch.getCars())
+                .stream()
+                .map(this::toCarResponse)
+                .toList();
+    }
+
+    public CarResponse addCarToInventory(Long branchId, CarRequest request) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
+
+        Car car = new Car();
+        car.setPlateNumber(request.plateNumber());
+        car.setBrand(request.brand());
+        car.setModel(request.model());
+        car.setYear(request.year());
+        car.setMileage(request.mileage());
+        car.setDailyRate(request.dailyRate().doubleValue());
+        car.setCarType(request.carType());
+        car.setAvailability("AVAILABLE");
+
+        Car saved = carRepository.save(car);
+
+        if (branch.getCars() == null) branch.setCars(new ArrayList<>());
+        branch.getCars().add(saved);
+        branchRepository.save(branch);
+
+        return toCarResponse(saved);
+    }
+
+    public CarResponse updateCarInInventory(Long carId, CarRequest request) {
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new RuntimeException("Car not found: " + carId));
+
+        car.setPlateNumber(request.plateNumber());
+        car.setBrand(request.brand());
+        car.setModel(request.model());
+        car.setYear(request.year());
+        car.setMileage(request.mileage());
+        car.setDailyRate(request.dailyRate().doubleValue());
+        car.setCarType(request.carType());
+        car.setAvailability(request.availability());
+
+        return toCarResponse(carRepository.save(car));
+    }
+
+    @Transactional
+    public boolean removeCarFromInventory(Long branchId, Long carId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
+
+        if (branch.getCars() != null) {
+            branch.getCars().removeIf(c -> carId.equals(c.getCarId()));
+            branchRepository.save(branch);
+        }
+
+        carRepository.findById(carId).ifPresent(car -> {
+            if ((car.getRentals() != null && !car.getRentals().isEmpty())
+                    || (car.getReservations() != null && !car.getReservations().isEmpty())) {
+                car.setAvailability("UNAVAILABLE");
+                carRepository.save(car);
+            } else {
+                carRepository.delete(car);
+            }
+        });
+
+        return true;
+    }
+
     public Map<String, Object> viewReports(Long branchId) {
         Map<String, Object> report = new HashMap<>();
+        List<Car> cars = branchId == null
+                ? carRepository.findAll()
+                : branchRepository.findById(branchId)
+                .map(Branch::getCars)
+                .orElse(List.of());
 
-        List<Rental> allRentals = rentalRepository.findAll().stream()
-                .filter(rental -> branchId == null || rentalBelongsToBranch(rental, branchId))
-                .toList();
-        List<Payment> allPayments = paymentRepository.findAll().stream()
-                .filter(payment -> branchId == null || paymentBelongsToBranch(payment, branchId))
-                .toList();
-        List<Car> allCars = carRepository.findAll().stream()
-                .filter(car -> branchId == null || carBelongsToBranch(car, branchId))
-                .toList();
-        List<Customer> allCustomers = customerRepository.findAll();
-
-        long totalRentals = allRentals.size();
-        long activeRentals = allRentals.stream()
-                .filter(r -> RENTAL_ACTIVE.equalsIgnoreCase(string(r, "status")))
-                .count();
-        long completedRentals = allRentals.stream()
-                .filter(r -> RENTAL_RETURNED.equalsIgnoreCase(string(r, "status")))
-                .count();
-
-        double totalRevenue = allPayments.stream()
-                .filter(payment -> PAYMENT_COMPLETED.equalsIgnoreCase(string(payment, "status")))
-                .mapToDouble(payment -> {
-                    Double amount = doubleValue(payment, "amount");
-                    return amount == null ? 0.0 : amount;
-                })
-                .sum();
-
-        long availableCars = allCars.stream()
-                .filter(car -> available(car))
-                .count();
-        long rentedCars = allCars.stream()
-                .filter(c -> !available(c))
+        long availableCars = cars.stream()
+                .filter(car -> "AVAILABLE".equalsIgnoreCase(car.getAvailability()))
                 .count();
 
         report.put("branchId", branchId);
-        report.put("totalRentals", totalRentals);
-        report.put("activeRentals", activeRentals);
-        report.put("completedRentals", completedRentals);
-        report.put("totalRevenue", totalRevenue);
-        report.put("totalCustomers", allCustomers.size());
-        report.put("totalFleetSize", allCars.size());
+        report.put("totalFleetSize", cars.size());
         report.put("availableCars", availableCars);
-        report.put("rentedCars", rentedCars);
-
+        report.put("rentedCars", cars.size() - availableCars);
         return report;
     }
 
-    public List<Car> getInventory(Long branchId) {
-        Branch branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
-        return branch.getCars() == null ? Collections.emptyList() : branch.getCars();
-    }
-    public Car addCarToInventory(Long branchId, Car car) {
-        Branch branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
-        set(car, "branch", branch);
-        if (string(car, "availability") == null || string(car, "availability").isBlank()) {
-            setAvailable(car, true);
-        }
-        return carRepository.save(car);
+    // -----------------------------
+    // BASIC RESPONSE MAPPERS
+    // -----------------------------
+
+    private ManagerResponse toManagerResponse(Manager manager) {
+        return new ManagerResponse(
+                manager.getManagerId(),
+                manager.getName(),
+                manager.getEmail(),
+                manager.getPhone()
+        );
     }
 
-    public Car updateCarInInventory(String vinNumber, Car updated) {
-        Car existing = carRepository.findByVinNumber(vinNumber)
-                .orElseThrow(() -> new RuntimeException("Car not found: " + vinNumber));
-        set(existing, "plateNumber", string(updated, "plateNumber"));
-        set(existing, "brand", string(updated, "brand"));
-        set(existing, "model", string(updated, "model"));
-        set(existing, "year", integer(updated, "year"));
-        set(existing, "mileage", integer(updated, "mileage"));
-        set(existing, "availability", string(updated, "availability"));
-        set(existing, "dailyRate", doubleValue(updated, "dailyRate"));
-        set(existing, "carType", string(updated, "carType"));
-        return carRepository.save(existing);
-    }
-    public void removeCarFromInventory(Long branchId, String vinNumber) {
-        Branch branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
-        Car car = carRepository.findByVinNumber(vinNumber)
-                .orElseThrow(() -> new RuntimeException("Car not found: " + vinNumber));
-        if (branch.equals(get(car, "branch"))) {
-            set(car, "branch", null);
-            carRepository.save(car);
-        }
-    }
-
-    private boolean rentalBelongsToBranch(Rental rental, Long branchId) {
-        Car car = get(rental, "car", Car.class);
-        return carBelongsToBranch(car, branchId);
-    }
-
-    private boolean paymentBelongsToBranch(Payment payment, Long branchId) {
-        Rental rental = get(payment, "rental", Rental.class);
-        return rental != null && rentalBelongsToBranch(rental, branchId);
-    }
-
-    private boolean carBelongsToBranch(Car car, Long branchId) {
-        if (car == null) {
-            return false;
-        }
-        Branch branch = get(car, "branch", Branch.class);
-        return branch != null && branchId.equals(branch.getBranchId());
+    private CarResponse toCarResponse(Car car) {
+        return new CarResponse(
+                car.getCarId(),
+                car.getPlateNumber(),
+                car.getBrand(),
+                car.getModel(),
+                car.getYear(),
+                car.getMileage(),
+                "AVAILABLE".equalsIgnoreCase(car.getAvailability()),
+                car.getAvailability(),
+                car.getDailyRate(),
+                car.getCarType(),
+                null,
+                null
+        );
     }
 }

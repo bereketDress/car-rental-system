@@ -4,7 +4,8 @@
 // - Pass data to child components.
 
 import { useEffect, useState } from "react";
-import { paymentService, rentalService } from "../../services/api";
+import { paymentService } from "../../services/paymentService";
+import { rentalService } from "../../services/rentalService";
 import PaymentList from "../../components/payment/PaymentList";
 import PaymentHistory from "../../components/payment/PaymentHistory";
 import { useAuth } from "../../context/AuthContext.jsx";

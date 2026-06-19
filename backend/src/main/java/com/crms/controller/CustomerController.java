@@ -1,6 +1,6 @@
 package com.crms.controller;
+import com.crms.dto.customer.CustomerResponse;
 import lombok.RequiredArgsConstructor;
-import com.crms.model.Customer;
 import com.crms.service.CustomerService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,12 +20,12 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Customer>> listAll() {
+    public ResponseEntity<List<CustomerResponse>> listAll() {
         return ResponseEntity.ok(customerService.listAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Customer> get(@PathVariable Long id) {
+    public ResponseEntity<CustomerResponse> get(@PathVariable Long id) {
         return ResponseEntity.ok(customerService.getCustomer(id));
     }
 }

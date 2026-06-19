@@ -1,24 +1,22 @@
 package com.crms.model;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.*;
-import lombok.*;
-import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
-@AllArgsConstructor
-@NoArgsConstructor
+@Entity
 @Getter
 @Setter
-@Entity
-@Table(name = "branch")
-@JsonIgnoreProperties({"cars", "staff"})
-public class Branch {
+@NoArgsConstructor
+@AllArgsConstructor
 
+public class Branch {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "branch_id")
     private Long branchId;
 
     private String name;
@@ -27,11 +25,16 @@ public class Branch {
     @Embedded
     private Address address;
 
-    @JsonIgnore
-    @OneToMany(mappedBy = "branch")
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "branch_id")
     private List<Car> cars;
 
-    @JsonIgnore
-    @OneToMany(mappedBy = "branch")
-    private List<Staff> staff;
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "branch_id")
+    private List<Staff> staffs;
+
+    @OneToOne
+    @JoinColumn(name= "branch_id")
+    private Manager manager;
+
 }

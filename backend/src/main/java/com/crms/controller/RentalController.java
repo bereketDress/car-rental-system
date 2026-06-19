@@ -1,14 +1,17 @@
 package com.crms.controller;
 
-import com.crms.dto.rentalDto.CheckInPaymentResponse;
+import com.crms.dto.rental.check.CheckInRequest;
+import com.crms.dto.rental.check.CheckOutRequest;
+import com.crms.dto.rental.check.CheckInPaymentResponse;
+import com.crms.dto.rental.RentalResponse;
 import com.crms.config.StripeConfig;
-import com.crms.model.Payment;
+import com.crms.dto.payment.PaymentRequest;
+import com.crms.dto.payment.PaymentResponse;
 import com.crms.service.PaymentService;
 import com.crms.service.StripeService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import lombok.RequiredArgsConstructor;
-import com.crms.model.Rental;
 import com.crms.service.RentalService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +22,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-import static com.crms.util.EntityFields.doubleValue;
-import static com.crms.util.EntityFields.longValue;
-import static com.crms.util.EntityFields.string;
 
 @RestController
 @RequestMapping("/api/rentals")
@@ -35,7 +34,7 @@ public class RentalController {
     private final StripeConfig stripeConfig;
 
     @GetMapping
-    public ResponseEntity<List<Rental>> list(@RequestParam(required = false) Long customerId, Authentication authentication) {
+    public ResponseEntity<List<RentalResponse>> list(@RequestParam(required = false) Long customerId, Authentication authentication) {
         Long authenticatedCustomerId = authenticatedCustomerId(authentication);
         if (authenticatedCustomerId != null) {
             return ResponseEntity.ok(rentalService.listByCustomer(authenticatedCustomerId));
@@ -52,11 +51,13 @@ public class RentalController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<Rental> checkOut(@RequestBody Map<String, String> body, Authentication authentication) {
+    public ResponseEntity<RentalResponse> checkOut(@RequestBody Map<String, String> body, Authentication authentication) {
         return ResponseEntity.ok(rentalService.checkOut(
-                Long.parseLong(body.get("reservationId")),
-                parseMileage(body.get("startMileage")),
-                LocalDate.parse(body.get("returnDate")),
+                new CheckOutRequest(
+                        Long.parseLong(body.get("reservationId")),
+                        parseMileage(body.get("startMileage")),
+                        LocalDate.parse(body.get("returnDate"))
+                ),
                 authenticatedCustomerId(authentication)
         ));
     }
@@ -66,40 +67,46 @@ public class RentalController {
         String paymentMethod = normalizePaymentMethod(body);
         Long customerId = authenticatedCustomerId(authentication);
         String repairCost = body.get("repairCost");
-        Rental rental = rentalService.checkIn(
-                id,
-                parseMileage(body.get("endMileage")),
-                body.get("damageDescription"),
-                repairCost != null && !repairCost.isBlank() ? Float.parseFloat(repairCost) : null,
+        RentalResponse rental = rentalService.checkIn(
+                new CheckInRequest(
+                        id,
+                        parseMileage(body.get("endMileage")),
+                        body.get("damageDescription"),
+                        repairCost != null && !repairCost.isBlank() ? Float.parseFloat(repairCost) : null,
+                        paymentMethod
+                ),
                 customerId
         );
 
         if ("CASH".equals(paymentMethod)) {
-            return ResponseEntity.ok(cashResponse(rental, paymentService.recordPayment(id, "CASH", customerId)));
+            return ResponseEntity.ok(cashResponse(rental, paymentService.recordPayment(
+                    new PaymentRequest(id, null, null, "CASH"),
+                    customerId
+            )));
         }
 
         try {
-            Float amount = paymentService.computeCharges(id, customerId);
+            Float amount = paymentService.computeCharges(id, customerId).amount();
             paymentService.validateCanCreateCardPayment(id, customerId);
             PaymentIntent intent = stripeService.createPaymentIntent(amount);
-            Payment payment = paymentService.createPendingPayment(id, intent.getId(), customerId);
+            PaymentResponse payment = paymentService.createPendingPayment(id, intent.getId(), customerId);
             return ResponseEntity.ok(cardResponse(rental, payment, intent, amount));
         } catch (StripeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to create Stripe payment intent");
         }
     }
 
-    private CheckInPaymentResponse cashResponse(Rental rental, Payment payment) {
+    private CheckInPaymentResponse cashResponse(RentalResponse rental, PaymentResponse payment) {
         return new CheckInPaymentResponse(
-                rental, "CASH", string(payment, "status"), false,
-                null, null, null, doubleValue(payment, "amount").floatValue(), longValue(payment, "paymentId")
+                rental, "CASH", payment.status(), false,
+                null, null, null, payment.amount(), payment.paymentId()
         );
     }
 
-    private CheckInPaymentResponse cardResponse(Rental rental, Payment payment, PaymentIntent intent, Float amount) {
+    private CheckInPaymentResponse cardResponse(RentalResponse rental, PaymentResponse payment, PaymentIntent intent, Float amount) {
         return new CheckInPaymentResponse(
-                rental, "CARD", string(payment, "status"), true,
-                stripeConfig.getPublishableKey(), intent.getClientSecret(), intent.getId(), amount, longValue(payment, "paymentId")
+                rental, "CARD", payment.status(), true,
+                stripeConfig.getPublishableKey(), intent.getClientSecret(), intent.getId(), amount, payment.paymentId()
         );
     }
 

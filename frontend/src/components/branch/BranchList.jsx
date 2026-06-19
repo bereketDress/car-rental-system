@@ -1,4 +1,4 @@
-import { branchService } from "../../services/api";
+import { branchService } from "../../services/branchService";
 
 export default function BranchList({branches, onEdit, reload,}) {
     const remove = async (id) => {
@@ -17,7 +17,8 @@ export default function BranchList({branches, onEdit, reload,}) {
                         {branch.name}
                     </h2>
 
-                    <p>{branch.location}</p>
+                    <p>{[branch.street, branch.city, branch.zipcode].filter(Boolean).join(", ")}</p>
+                    {branch.phone && <p className="text-sm text-gray-600">{branch.phone}</p>}
 
                     <div className="mt-3 flex gap-2">
                         <button

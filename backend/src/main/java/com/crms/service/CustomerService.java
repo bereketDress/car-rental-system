@@ -1,127 +1,49 @@
 package com.crms.service;
-import lombok.RequiredArgsConstructor;
+
+import com.crms.dto.customer.CustomerRequest;
+import com.crms.dto.customer.CustomerResponse;
 import com.crms.model.Address;
-import com.crms.model.Car;
 import com.crms.model.Customer;
-import com.crms.repository.CarRepository;
 import com.crms.repository.CustomerRepository;
 import com.crms.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
-import static com.crms.util.EntityFields.*;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
-    private final CarRepository carRepository;
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    public List<Customer> listAll() { return customerRepository.findAll(); }
-
-    public Customer getCustomer(Long id) {
-        return customerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+    public List<CustomerResponse> listAll() {
+        return customerRepository.findAll().stream().map(this::response).toList();
     }
 
-    public Customer registerCustomer(Customer customer) {
-        if (isBlank(string(customer, "name"))) {
-            throw new IllegalArgumentException("Name is required");
-        }
-        set(customer, "name", string(customer, "name").trim());
-        set(customer, "outstandingBalance", 0.0);
-        return customerRepository.save(customer);
+    public CustomerResponse getCustomer(Long id) {
+        return response(getCustomerEntity(id));
     }
 
-    public Map<String, Object> registerCustomerAccount(Map<String, String> body) {
-        String role = normalize(body.getOrDefault("role", "CUSTOMER")).toUpperCase(Locale.ROOT);
-        if (!"CUSTOMER".equals(role)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only customer self-registration is allowed");
-        }
-
-        String name = normalize(body.get("name"));
-        String email = normalize(body.get("email")).toLowerCase(Locale.ROOT);
-        String password = normalize(body.get("password"));
-
-        if (isBlank(name) || isBlank(email) || isBlank(password)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name, email, and password are required");
-        }
-
-        Integer existingCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM customer WHERE email = ?",
-                Integer.class,
-                email
-        );
-        if (existingCount != null && existingCount > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
-        }
-
+    public CustomerResponse registerCustomer(CustomerRequest request) {
         Customer customer = new Customer();
-        set(customer, "name", name);
-        set(customer, "phone", normalize(body.get("phone")));
-        set(customer, "licenseNumber", normalize(body.get("licenseNumber")));
-        set(customer, "outstandingBalance", 0.0);
-        set(customer, "address", Address.builder()
-                .city(normalize(body.get("city")))
-                .street(normalize(body.get("street")))
-                .zipcode(normalize(body.get("zipcode")))
-                .build());
-
-        Customer saved = customerRepository.save(customer);
-        Long customerId = longValue(saved, "customerId");
-
-        jdbcTemplate.update(
-                "UPDATE customer SET email = ?, password = ? WHERE customer_id = ?",
-                email,
-                passwordEncoder.encode(password),
-                customerId
-        );
-
-        return Map.of(
-                "token", jwtUtil.generateToken(email, "CUSTOMER", customerId),
-                "role", "CUSTOMER",
-                "userId", customerId,
-                "name", name,
-                "capabilities", customerCapabilities()
-        );
+        fill(customer, request);
+        customer.setOutstandingBalance(0.0F);
+        return response(customerRepository.save(customer));
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
-
-    private String normalize(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private List<String> customerCapabilities() {
-        return List.of(
-                "REGISTER_ACCOUNT",
-                "SEARCH_VEHICLES",
-                "MAKE_RESERVATION",
-                "CANCEL_RESERVATION",
-                "VIEW_BOOKING_HISTORY"
-        );
-    }
-
-    public Customer updateCustomer(Long id, Customer updated) {
-        Customer existing = getCustomer(id);
-        set(existing, "name", string(updated, "name"));
-        set(existing, "phone", string(updated, "phone"));
-        set(existing, "licenseNumber", string(updated, "licenseNumber"));
-        set(existing, "outstandingBalance", doubleValue(updated, "outstandingBalance"));
-        set(existing, "address", get(updated, "address"));
-        return customerRepository.save(existing);
+    public CustomerResponse updateCustomer(Long id, CustomerRequest request) {
+        Customer customer = getCustomerEntity(id);
+        fill(customer, request);
+        return response(customerRepository.save(customer));
     }
 
     public boolean deleteCustomer(Long id) {
@@ -129,22 +51,76 @@ public class CustomerService {
         return true;
     }
 
-
-    public boolean hasOutstandingBalance(Long custId) {
-        Customer customer = getCustomer(custId);
-        Double outstandingBalance = doubleValue(customer, "outstandingBalance");
-        return outstandingBalance != null && outstandingBalance > 0;
-    }
-    public boolean eligibleForReservation(Long custId) {
-        return !hasOutstandingBalance(custId);
+    public boolean hasOutstandingBalance(Long customerId) {
+        Float balance = getCustomerEntity(customerId).getOutstandingBalance();
+        return balance != null && balance > 0;
     }
 
-    public List<Car> searchAvailableCars(String carType) {
-        List<Car> allCars = carRepository.findAll();
-        return allCars.stream()
-                .filter(car -> available(car))
-                .filter(car -> carType == null || carType.isBlank()
-                        || carType.equalsIgnoreCase(string(car, "carType")))
-                .toList();
+    public boolean eligibleForReservation(Long customerId) {
+        return !hasOutstandingBalance(customerId);
+    }
+
+    public Map<String, Object> registerCustomerAccount(Map<String, String> body) {
+        String name = text(body.get("name"));
+        String email = text(body.get("email")).toLowerCase();
+        String password = text(body.get("password"));
+
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name, email, and password are required");
+        }
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM customer WHERE email = ?",
+                Integer.class,
+                email
+        );
+
+        if (count != null && count > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+        }
+
+        Customer customer = new Customer();
+        customer.setName(name);
+        customer.setEmail(email);
+        customer.setPassword(passwordEncoder.encode(password));
+        customer.setPhone(text(body.get("phone")));
+        customer.setLicenseNo(text(body.get("licenseNumber")));
+        customer.setOutstandingBalance(0.0F);
+        customer.setAddress(address(text(body.get("city")), text(body.get("street")), text(body.get("zipcode"))));
+
+        Customer saved = customerRepository.save(customer);
+        return Map.of(
+                "token", jwtUtil.generateToken(email, "CUSTOMER", saved.getCustomerId()),
+                "role", "CUSTOMER",
+                "userId", saved.getCustomerId(),
+                "name", saved.getName(),
+                "capabilities", List.of("REGISTER_ACCOUNT", "SEARCH_VEHICLES", "MAKE_RESERVATION",
+                        "CANCEL_RESERVATION", "VIEW_BOOKING_HISTORY")
+        );
+    }
+
+    Customer getCustomerEntity(Long id) {
+        return customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+    }
+
+    private void fill(Customer customer, CustomerRequest request) {
+        customer.setName(request.name());
+        customer.setPhone(request.phone());
+        customer.setLicenseNo(request.licenseNumber());
+        customer.setAddress(address(request.city(), request.street(), request.zipcode()));
+    }
+
+    private Address address(String city, String street, String zipcode) {
+        return Address.builder().city(city).street(street).zipcode(zipcode).build();
+    }
+
+    private CustomerResponse response(Customer customer) {
+        return new CustomerResponse(customer.getCustomerId(), customer.getName(), customer.getPhone(),
+                customer.getLicenseNo(), customer.getOutstandingBalance(), List.of(), List.of());
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value.trim();
     }
 }

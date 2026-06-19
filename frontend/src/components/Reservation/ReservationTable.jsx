@@ -3,7 +3,8 @@
 // - Confirm reservations.
 
 import { CalendarDays, Check, LogOut, X } from "lucide-react";
-import { rentalService, reservationService } from "../../services/api";
+import { rentalService } from "../../services/rentalService";
+import { reservationService } from "../../services/reservationService";
 import { useState } from "react";
 
 const statusStyles = {
@@ -127,8 +128,8 @@ export default function ReservationTable({
                                 <div className="font-medium text-gray-950">
                                     {r.car?.brand} {r.car?.model}
                                 </div>
-                                {r.car?.vinNumber && (
-                                    <div className="text-xs text-gray-500">{r.car.vinNumber}</div>
+                                {r.car?.carId && (
+                                    <div className="text-xs text-gray-500">Car ID: {r.car.carId}</div>
                                 )}
                             </td>
                             <td className="px-5 py-4 text-gray-700">{r.reservationDate}</td>

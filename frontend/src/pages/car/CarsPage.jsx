@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { carService, reservationService } from "../../services/api";
+import { carService } from "../../services/carService";
+import { reservationService } from "../../services/reservationService";
 import CarGrid from "../../components/car/CarGrid";
 import { useAuth } from "../../context/AuthContext.jsx";
 
@@ -45,7 +46,7 @@ export default function CarsPage() {
         }
 
         await reservationService.create({
-            vinNumber: car.vinNumber || car.vinNo,
+            carId: car.carId,
             pickupDate,
         });
         await loadCars();

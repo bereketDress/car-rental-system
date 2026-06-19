@@ -13,7 +13,6 @@ export default function CarCard({ car, onReserve, disabled }) {
     const [pickupDate, setPickupDate] = useState(nextDate());
     const [message, setMessage] = useState("");
     const isReserved = !car.availability;
-    const vinNumber = car.vinNumber || car.vinNo;
 
     const reserve = async () => {
         if (isReserved) return;
@@ -34,9 +33,7 @@ export default function CarCard({ car, onReserve, disabled }) {
             </h2>
 
             <p>{car.carType}</p>
-            {vinNumber && (
-                <p className="text-xs text-gray-500">{vinNumber}</p>
-            )}
+            <p className="text-xs text-gray-500">Car ID: {car.carId}</p>
 
             <p className="font-semibold">
                 ${car.dailyRate}/day

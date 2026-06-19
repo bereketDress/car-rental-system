@@ -1,46 +1,96 @@
 package com.crms.service;
-import com.crms.model.*;
-import lombok.RequiredArgsConstructor;
-import com.crms.repository.DamageRepository;
-import org.springframework.stereotype.Service;
-import java.util.List;
 
-import static com.crms.util.EntityFields.*;
+import com.crms.dto.damage.DamageRequest;
+import com.crms.dto.damage.DamageResponse;
+import com.crms.exception.ResourceNotFoundException;
+import com.crms.model.Damage;
+import com.crms.repository.DamageRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class DamageService {
 
+    private static final String DAMAGE_REPORTED = "REPORTED";
+
     private final DamageRepository damageRepository;
 
-    public List<Damage> getAll() { return damageRepository.findAll(); }
-
-    public Damage getById(Long id) {
-        return damageRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Damage not found: " + id));
+    public List<DamageResponse> getAll() {
+        return damageRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    public Damage create(Damage damage) {
-        set(damage, "status", DAMAGE_REPORTED);
-        return damageRepository.save(damage);
+    public DamageResponse getById(Long id) {
+        Damage damage = getDamage(id);
+        return toResponse(damage);
     }
 
-
-    // Valid status transitions: REPORTED -> UNDER_REPAIR -> REPAIRED -> CLOSED
-    public Damage updateStatus(Long id, String newStatus) {
-        Damage damage = getById(id);
-
-        List<String> validStatuses = List.of("REPORTED", "UNDER_REPAIR", "REPAIRED", "CLOSED");
-
-        if (!validStatuses.contains(newStatus.toUpperCase())) {
-            throw new RuntimeException(
-                    "Invalid status: " + newStatus + ". Valid values: " + validStatuses
-            );
+    public DamageResponse create(DamageRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Damage cannot be empty");
         }
 
-        set(damage, "status", newStatus.toUpperCase());
-        return damageRepository.save(damage);
+        Damage damage = new Damage();
+        damage.setReportDate(request.reportDate());
+        damage.setRepairCost(request.repairCost());
+        damage.setDescription(request.description());
+        damage.setStatus(DAMAGE_REPORTED);
+
+        Damage savedDamage = damageRepository.save(damage);
+        return toResponse(savedDamage);
     }
 
-    public void delete(Long id) { damageRepository.deleteById(id); }
+    public DamageResponse updateStatus(Long id, String newStatus) {
+        Damage damage = getDamage(id);
+
+        if (newStatus == null || newStatus.isBlank()) {
+            throw new IllegalArgumentException("Status is required");
+        }
+
+        String status = newStatus.toUpperCase();
+
+        List<String> validStatuses = List.of(
+                "REPORTED",
+                "UNDER_REPAIR",
+                "REPAIRED",
+                "CLOSED"
+        );
+
+        if (!validStatuses.contains(status)) {
+            throw new IllegalArgumentException("Invalid status: " + newStatus);
+        }
+
+        damage.setStatus(status);
+
+        Damage savedDamage = damageRepository.save(damage);
+        return toResponse(savedDamage);
+    }
+
+    public boolean delete(Long id) {
+        Damage damage = getDamage(id);
+        damageRepository.delete(damage);
+        return true;
+    }
+
+    private Damage getDamage(Long id) {
+        return damageRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Damage not found: " + id));
+    }
+
+    private DamageResponse toResponse(Damage damage) {
+        return new DamageResponse(
+                damage.getDamageId(),
+                damage.getReportDate(),
+                damage.getRepairCost(),
+                damage.getStatus(),
+                damage.getDescription(),
+                List.of()
+        );
+    }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { branchService } from "../../services/api";
+import { branchService } from "../../services/branchService";
 import BranchForm from "../../components/branch/BranchForm";
 import BranchList from "../../components/branch/BranchList";
 

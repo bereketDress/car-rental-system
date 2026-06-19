@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { branchService, staffService } from "../../services/api.js";
+import { branchService } from "../../services/branchService";
+import { staffService } from "../../services/staffService";
 
 const emptyStaff = {
     name: "",

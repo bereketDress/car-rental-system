@@ -4,7 +4,8 @@
 // - Pass statistics to StatsGrid.
 
 import { useEffect, useState } from "react";
-import { branchService, managerService } from "../../services/api";
+import { branchService } from "../../services/branchService";
+import { managerService } from "../../services/managerService";
 import StatsGrid from "../../components/report/StatsGrid";
 
 export default function ReportsPage() {

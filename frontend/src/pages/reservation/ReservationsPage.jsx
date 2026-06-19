@@ -5,7 +5,9 @@
 
 import { CalendarCheck, CreditCard, Gauge, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { paymentService, reservationService, rentalService } from "../../services/api";
+import { paymentService } from "../../services/paymentService";
+import { rentalService } from "../../services/rentalService";
+import { reservationService } from "../../services/reservationService";
 import ReservationTable from "../../components/Reservation/ReservationTable";
 import RentalList from "../../components/Reservation/RentalList";
 import { useAuth } from "../../context/AuthContext.jsx";

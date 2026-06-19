@@ -1,21 +1,19 @@
 package com.crms.security;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.*;
 
 import java.util.List;
 
@@ -25,79 +23,69 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    private static final String[] PUBLIC = {
+            "/api/auth/**",
+            "/api/stripe/config",
+            "/api/customers/register"
+    };
 
+    private static final String[] MANAGER = {
+            "/api/manager/**",
+            "/api/branches/**",
+            "/api/staff/**"
+    };
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-
-                .csrf(csrf -> csrf.disable())
-
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
-                        .accessDeniedHandler((request, response, accessDeniedException) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN))
-                )
-
+                .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                        .accessDeniedHandler((req, res, ex) -> res.sendError(HttpServletResponse.SC_FORBIDDEN)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+
+                        .requestMatchers(PUBLIC).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/stripe/webhook").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/stripe/config").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/confirm-card").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/customers/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/cars", "/api/cars/search").permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/api/cars").hasRole("MANAGER")
                         .requestMatchers(HttpMethod.PUT, "/api/cars/**").hasRole("MANAGER")
                         .requestMatchers(HttpMethod.DELETE, "/api/cars/**").hasRole("MANAGER")
-                        .requestMatchers("/api/manager/**").hasRole("MANAGER")
-                        .requestMatchers("/api/branches/**").hasRole("MANAGER")
-                        .requestMatchers("/api/staff/**").hasRole("MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/reservations").hasRole("CUSTOMER")
-                        .requestMatchers(HttpMethod.GET, "/api/reservations/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm").hasAnyRole("STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/reservations/*/cancel").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/cancel").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/reservations/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.GET, "/api/rentals/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
+                        .requestMatchers(MANAGER).hasRole("MANAGER")
+
                         .requestMatchers(HttpMethod.POST, "/api/rentals/checkout").hasAnyRole("STAFF", "MANAGER")
                         .requestMatchers(HttpMethod.POST, "/api/rentals/*/checkin").hasAnyRole("STAFF", "MANAGER")
-                        .requestMatchers("/api/damages/**").hasAnyRole("STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.GET, "/api/payments/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/payments/create-intent").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/payments/record-card").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/payments/record").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
-                        .requestMatchers(HttpMethod.POST, "/api/payments/process").hasAnyRole("STAFF", "MANAGER")
-                        .anyRequest().authenticated()
-                )
+                        .requestMatchers(HttpMethod.POST, "/api/reservations").hasRole("CUSTOMER")
+                        .requestMatchers("/api/reservations/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
+                        .requestMatchers("/api/rentals/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
+                        .requestMatchers("/api/payments/**").hasAnyRole("CUSTOMER", "STAFF", "MANAGER")
 
-                .httpBasic(AbstractHttpConfigurer::disable);
+                        .requestMatchers("/api/damages/**").hasAnyRole("STAFF", "MANAGER")
+                        .anyRequest().authenticated()
+                );
 
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
-
     @Bean
-    public PasswordEncoder passwordEncoder() {
+    PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration c = new CorsConfiguration();
+        c.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        c.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        c.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", c);
         return source;
     }
 }

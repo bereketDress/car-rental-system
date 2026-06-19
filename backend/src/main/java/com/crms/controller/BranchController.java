@@ -1,6 +1,8 @@
 package com.crms.controller;
+import com.crms.dto.branch.BranchRequest;
+import com.crms.dto.branch.BranchResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import com.crms.model.Branch;
 import com.crms.service.BranchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,18 +16,23 @@ public class BranchController {
     private final BranchService branchService;
 
     @GetMapping
-    public ResponseEntity<List<Branch>> listAll() {
+    public ResponseEntity<List<BranchResponse>> listAll() {
         return ResponseEntity.ok(branchService.listBranches());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<BranchResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.getById(id));
+    }
+
     @PostMapping
-    public ResponseEntity<Branch> add(@RequestBody Branch branch) {
-        return ResponseEntity.ok(branchService.addBranch(branch));
+    public ResponseEntity<BranchResponse> add(@Valid @RequestBody BranchRequest request) {
+        return ResponseEntity.ok(branchService.addBranch(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Branch> update(@PathVariable Long id, @RequestBody Branch branch) {
-        return ResponseEntity.ok(branchService.updateBranch(id, branch));
+    public ResponseEntity<BranchResponse> update(@PathVariable Long id, @Valid @RequestBody BranchRequest request) {
+        return ResponseEntity.ok(branchService.updateBranch(id, request));
     }
 
     @DeleteMapping("/{id}")

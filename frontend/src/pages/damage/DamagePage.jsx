@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { damageService } from "../../services/api";
+import { damageService } from "../../services/damageService";
 import DamageTable from "../../components/damage/DamageTable";
 
 export default function DamagesPage() {

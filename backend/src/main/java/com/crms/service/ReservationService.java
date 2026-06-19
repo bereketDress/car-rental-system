@@ -1,188 +1,171 @@
 package com.crms.service;
-import com.crms.dto.reservationDto.ReservationResponse;
-import com.crms.exception.CarNotAvailableException;
+
+import com.crms.dto.reservation.ReservationResponse;
 import com.crms.model.Car;
 import com.crms.model.Customer;
 import com.crms.model.Reservation;
-import com.crms.model.Staff;
+import com.crms.repository.CarRepository;
+import com.crms.repository.CustomerRepository;
 import com.crms.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDate;
-import java.util.List;
 
-import static com.crms.util.EntityFields.*;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
+    private final CustomerRepository customerRepository;
+    private final CarRepository carRepository;
     private final CustomerService customerService;
     private final CarService carService;
 
-    public List<Reservation> getAll() { return reservationRepository.findAll(); }
-
     @Transactional(readOnly = true)
-    public List<ReservationResponse> getAllResponses() {
-        return reservationRepository.findAllWithDetails().stream().map(this::toResponse).toList();
-    }
-
-    public Reservation getById(Long id) {
-        return reservationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
+    public List<ReservationResponse> listAll() {
+        return reservationRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public Reservation getByIdWithDetails(Long id) {
-        return reservationRepository.findByIdWithDetails(id)
+    public ReservationResponse getById(Long id) {
+        Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
+        return toResponse(reservation);
     }
 
     @Transactional
-    public Reservation createReservation(Long custId, String vinNumber, LocalDate pickupDate) {
-        if (!customerService.eligibleForReservation(custId)) {
-            throw new RuntimeException("Customer has an outstanding balance and cannot make a new reservation.");
+    public ReservationResponse createReservation(Long customerId, Long carId, LocalDate pickupDate) {
+
+        if (!customerService.eligibleForReservation(customerId)) {
+            throw new RuntimeException("Customer has outstanding balance.");
         }
 
-        if (vinNumber == null || vinNumber.isBlank()) {
-            throw new IllegalArgumentException("vinNumber is required");
+        Car car = carService.getCarEntity(carId);
+        if (!"AVAILABLE".equalsIgnoreCase(car.getAvailability())) {
+            throw new RuntimeException("Car not available.");
         }
 
-        Car car = carService.getCar(vinNumber);
-        if (!available(car)) {
-            throw new CarNotAvailableException("Car is already reserved or rented.");
-        }
-        
         Reservation reservation = new Reservation();
-        set(reservation, "customer", customerService.getCustomer(custId));
-        setReservationCar(reservation, car);
-        set(reservation, "pickupDate", pickupDate);
-        set(reservation, "reservationDate", LocalDate.now());
-        set(reservation, "status", RESERVATION_PENDING);
+        reservation.setCars(List.of(car));
+        reservation.setPickupDate(pickupDate);
+        reservation.setReservationDate(LocalDate.now());
+        reservation.setStatus("PENDING");
 
         Reservation saved = reservationRepository.save(reservation);
-        carService.updateAvailability(string(car, "vinNumber"), false);
-        return saved;
+
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+
+        if (customer.getReservations() == null) customer.setReservations(new ArrayList<>());
+        customer.getReservations().add(saved);
+        customerRepository.save(customer);
+
+        if (car.getReservations() == null) car.setReservations(new ArrayList<>());
+        car.getReservations().add(saved);
+        carRepository.save(car);
+
+        carService.updateAvailability(carId, false);
+
+        return toResponse(saved);
     }
 
     @Transactional
-    public ReservationResponse createReservationResponse(Long custId, String vinNumber, LocalDate pickupDate) {
-        return toResponse(createReservation(custId, vinNumber, pickupDate));
+    public ReservationResponse confirmReservation(Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
+
+        reservation.setStatus("CONFIRMED");
+        return toResponse(reservationRepository.save(reservation));
     }
 
     @Transactional
-    public Reservation confirmReservation(Long id) {
-        Reservation reservation = getById(id);
-        if (!RESERVATION_PENDING.equalsIgnoreCase(string(reservation, "status"))) {
-            throw new RuntimeException("Only PENDING reservations can be confirmed.");
-        }
-        set(reservation, "status", RESERVATION_CONFIRMED);
-        return reservationRepository.save(reservation);
-    }
+    public ReservationResponse cancelReservation(Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
 
-    @Transactional
-    public ReservationResponse confirmReservationResponse(Long id) {
-        confirmReservation(id);
-        return toResponse(reservationRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new RuntimeException("Reservation not found: " + id)));
-    }
-
-    @Transactional
-    public Reservation convertReservation(Long id) {
-        Reservation reservation = getById(id);
-        if (!RESERVATION_CONFIRMED.equalsIgnoreCase(string(reservation, "status"))) {
-            throw new RuntimeException("Only CONFIRMED reservations can be converted to rentals.");
-        }
-        set(reservation, "status", RESERVATION_CONVERTED);
-        return reservationRepository.save(reservation);
-    }
-
-    @Transactional
-    public Reservation cancelReservation(Long id) {
-        Reservation reservation = getByIdWithDetails(id);
-        if (RESERVATION_CANCELLED.equalsIgnoreCase(string(reservation, "status"))) {
-            throw new RuntimeException("Reservation is already cancelled.");
-        }
-
-        Car car = reservationCar(reservation);
-        boolean releaseCar = !RESERVATION_CONVERTED.equalsIgnoreCase(string(reservation, "status"))
-                && car != null;
-
-        set(reservation, "status", RESERVATION_CANCELLED);
+        reservation.setStatus("CANCELLED");
         Reservation saved = reservationRepository.save(reservation);
 
-        if (releaseCar) {
-            carService.updateAvailability(string(car, "vinNumber"), true);
-        }
+        Car car = reservation.getCars().get(0);
+        carService.updateAvailability(car.getCarId(), true);
 
-        return saved;
+        return toResponse(saved);
     }
 
-    @Transactional
-    public ReservationResponse cancelReservationResponse(Long id) {
-        cancelReservation(id);
-        return toResponse(reservationRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new RuntimeException("Reservation not found: " + id)));
+    public List<ReservationResponse> listByCustomer(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+
+        return (customer.getReservations() == null ? List.<Reservation>of() : customer.getReservations())
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    public List<Reservation> listByCustomer(Long custId) {
-        return reservationRepository.findByCustomerCustomerId(custId);
+    public boolean customerOwnsReservation(Long reservationId, Long customerId) {
+        Customer customer = customerForReservation(reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new RuntimeException("Reservation not found: " + reservationId)));
+
+        return customer != null && customerId.equals(customer.getCustomerId());
     }
 
-    @Transactional(readOnly = true)
-    public List<ReservationResponse> listResponsesByCustomer(Long custId) {
-        return reservationRepository.findByCustomerCustomerIdWithDetails(custId).stream().map(this::toResponse).toList();
-    }
-
-    public List<Reservation> listByStatus(String status) {
-        return reservationRepository.findByStatus(status);
-    }
-
-    public void delete(Long id) { reservationRepository.deleteById(id); }
-
-    public ReservationResponse toResponse(Reservation reservation) {
-        Customer customer = get(reservation, "customer", Customer.class);
-        Staff staff = get(reservation, "staff", Staff.class);
-        Car car = reservationCar(reservation);
+    private ReservationResponse toResponse(Reservation reservation) {
+        Customer customer = customerForReservation(reservation);
+        Car car = carForReservation(reservation);
 
         ReservationResponse.CustomerSummary customerSummary = customer == null ? null :
                 new ReservationResponse.CustomerSummary(
-                        longValue(customer, "customerId"),
-                        string(customer, "name"),
-                        null,
-                        string(customer, "phone")
-                );
-
-        ReservationResponse.StaffSummary staffSummary = staff == null ? null :
-                new ReservationResponse.StaffSummary(
-                        longValue(staff, "staffId"),
-                        string(staff, "name"),
-                        string(staff, "email"),
-                        string(staff, "role")
+                        customer.getCustomerId(),
+                        customer.getName(),
+                        customer.getEmail(),
+                        customer.getPhone()
                 );
 
         ReservationResponse.CarSummary carSummary = car == null ? null :
                 new ReservationResponse.CarSummary(
-                        string(car, "vinNumber"),
-                        string(car, "plateNumber"),
-                        string(car, "brand"),
-                        string(car, "model"),
-                        integer(car, "year") == null ? 0 : integer(car, "year"),
-                        doubleValue(car, "dailyRate") == null ? 0.0 : doubleValue(car, "dailyRate"),
-                        string(car, "carType")
+                        car.getCarId(),
+                        car.getPlateNumber(),
+                        car.getBrand(),
+                        car.getModel(),
+                        car.getYear() == null ? 0 : car.getYear(),
+                        car.getDailyRate() == null ? 0.0 : car.getDailyRate(),
+                        car.getCarType()
                 );
 
         return new ReservationResponse(
-                longValue(reservation, "reservationId"),
-                date(reservation, "reservationDate"),
-                date(reservation, "pickupDate"),
-                string(reservation, "status"),
+                reservation.getReservationId(),
+                reservation.getReservationDate(),
+                reservation.getPickupDate(),
+                reservation.getStatus(),
                 customerSummary,
-                staffSummary,
+                null,
                 carSummary
         );
     }
 
+    private Customer customerForReservation(Reservation reservation) {
+        if (reservation == null || reservation.getReservationId() == null) return null;
+
+        return customerRepository.findAll().stream()
+                .filter(customer -> customer.getReservations() != null)
+                .filter(customer -> customer.getReservations().stream()
+                        .anyMatch(r -> reservation.getReservationId().equals(r.getReservationId())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Car carForReservation(Reservation reservation) {
+        if (reservation == null || reservation.getCars() == null || reservation.getCars().isEmpty()) {
+            return null;
+        }
+
+        return reservation.getCars().get(0);
+    }
 }

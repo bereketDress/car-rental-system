@@ -1,13 +1,15 @@
 package com.crms.model;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-
-import java.util.List;
-
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Manager {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long managerId;
@@ -15,12 +17,8 @@ public class Manager {
     private String name;
     private String phone;
     private String email;
-
+    private String password;
     @OneToOne
-    @JoinColumn(name = "branch_id")
-    private Branch branch;
-
-    @OneToMany(mappedBy = "manager")
-    @JsonIgnore
-    private List<Staff> staffList;
+    @JoinColumn(name="manager_id")
+    private Staff staff;
 }

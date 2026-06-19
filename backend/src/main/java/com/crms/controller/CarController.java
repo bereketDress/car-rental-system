@@ -1,8 +1,8 @@
 package com.crms.controller;
 
-import com.crms.dto.CarDTO.CarResponse;
+import com.crms.dto.car.CarRequest;
+import com.crms.dto.car.CarResponse;
 import lombok.RequiredArgsConstructor;
-import com.crms.model.Car;
 import com.crms.service.CarService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,18 +27,18 @@ public class CarController {
     }
 
     @PostMapping
-    public ResponseEntity<Car> add(@RequestBody Car car) {
-        return ResponseEntity.ok(carService.addCar(car));
+    public ResponseEntity<CarResponse> add(@RequestBody CarRequest request) {
+        return ResponseEntity.ok(carService.addCar(request));
     }
 
-    @PutMapping("/{vinNumber}")
-    public ResponseEntity<Car> update(@PathVariable String vinNumber, @RequestBody Car car) {
-        return ResponseEntity.ok(carService.updateCar(vinNumber, car));
+    @PutMapping("/{carId}")
+    public ResponseEntity<CarResponse> update(@PathVariable Long carId, @RequestBody CarRequest request) {
+        return ResponseEntity.ok(carService.updateCar(carId, request));
     }
 
-    @DeleteMapping("/{vinNumber}")
-    public ResponseEntity<Void> delete(@PathVariable String vinNumber) {
-        carService.deleteCar(vinNumber);
+    @DeleteMapping("/{carId}")
+    public ResponseEntity<Void> delete(@PathVariable Long carId) {
+        carService.deleteCar(carId);
         return ResponseEntity.noContent().build();
     }
 }

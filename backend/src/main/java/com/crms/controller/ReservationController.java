@@ -1,8 +1,7 @@
 package com.crms.controller;
-import com.crms.dto.reservationDto.ReservationRequest;
-import com.crms.dto.reservationDto.ReservationResponse;
+import com.crms.dto.reservation.ReservationRequest;
+import com.crms.dto.reservation.ReservationResponse;
 import lombok.RequiredArgsConstructor;
-import com.crms.model.Reservation;
 import com.crms.service.ReservationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,9 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
-
-import static com.crms.util.EntityFields.get;
-import static com.crms.util.EntityFields.longValue;
 
 @RestController
 @RequestMapping("/api/reservations")
@@ -27,12 +23,12 @@ public class ReservationController {
                                                           Authentication authentication) {
         Long authenticatedCustomerId = authenticatedCustomerId(authentication);
         if (authenticatedCustomerId != null) {
-            return ResponseEntity.ok(reservationService.listResponsesByCustomer(authenticatedCustomerId));
+            return ResponseEntity.ok(reservationService.listByCustomer(authenticatedCustomerId));
         }
         if (customerId != null && hasStaffAccess(authentication)) {
-            return ResponseEntity.ok(reservationService.listResponsesByCustomer(customerId));
+            return ResponseEntity.ok(reservationService.listByCustomer(customerId));
         }
-        return ResponseEntity.ok(reservationService.getAllResponses());
+        return ResponseEntity.ok(reservationService.listAll());
     }
 
     @PostMapping
@@ -42,16 +38,16 @@ public class ReservationController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customers can create reservations");
         }
 
-        return ResponseEntity.ok(reservationService.createReservationResponse(
+        return ResponseEntity.ok(reservationService.createReservation(
                 customerId,
-                request.vinNumber(),
+                request.carId(),
                 request.pickupDate()
         ));
     }
 
     @PutMapping("/{id}/confirm")
     public ResponseEntity<ReservationResponse> confirm(@PathVariable Long id) {
-        return ResponseEntity.ok(reservationService.confirmReservationResponse(id));
+        return ResponseEntity.ok(reservationService.confirmReservation(id));
     }
 
     @DeleteMapping("/{id}")
@@ -70,16 +66,12 @@ public class ReservationController {
     }
 
     private ResponseEntity<ReservationResponse> cancelReservation(Long id, Authentication authentication) {
-        Reservation reservation = reservationService.getById(id);
         Long customerId = authenticatedCustomerId(authentication);
-        Object reservationCustomer = get(reservation, "customer");
-
-        if (customerId != null && (reservationCustomer == null
-                || !customerId.equals(longValue(reservationCustomer, "customerId")))) {
+        if (customerId != null && !reservationService.customerOwnsReservation(id, customerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Customers can only cancel their own reservations");
         }
 
-        return ResponseEntity.ok(reservationService.cancelReservationResponse(id));
+        return ResponseEntity.ok(reservationService.cancelReservation(id));
     }
 
     private Long authenticatedCustomerId(Authentication authentication) {

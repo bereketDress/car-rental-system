@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { branchService, managerService } from "../../services/api";
+import { branchService } from "../../services/branchService";
+import { managerService } from "../../services/managerService";
 import CarForm from "../../components/car/CarForm";
 import CarTable from "../../components/car/CarTable";
 
@@ -45,7 +46,7 @@ export default function AdminCarsPage() {
 
         try {
             if (editingCar) {
-                await managerService.updateVehicle(editingCar.vinNumber || editingCar.vinNo, car);
+                await managerService.updateVehicle(editingCar.carId, car);
                 setMessage("Vehicle updated.");
             } else {
                 await managerService.addVehicle(branchId, car);
@@ -59,11 +60,11 @@ export default function AdminCarsPage() {
         }
     };
 
-    const removeVehicle = async (vinNumber) => {
+    const removeVehicle = async (carId) => {
         setMessage("");
 
         try {
-            await managerService.removeVehicle(branchId, vinNumber);
+            await managerService.removeVehicle(branchId, carId);
             setMessage("Vehicle removed from branch inventory.");
             await loadCars();
         } catch (error) {

@@ -1,6 +1,6 @@
 
-// - Protect private pages.
-// - If user is not logged in, redirect to Login.
+// - Protect private pages
+// - If user is not logged in, redirect to Login
 // - After login, return the user to the original page.
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
@@ -9,16 +9,12 @@ import { useAuth } from "../../context/AuthContext.jsx";
 /**
  * @param {{ allowedRoles?: string[], allowedCapabilities?: string[] }} props
  */
-export default function ProtectedRoute({ allowedRoles = undefined, allowedCapabilities = undefined }) {
+export default function ProtectedRoute({ allowedRoles = [], allowedCapabilities = [] }) {
     const { auth, isAuthenticated } = useAuth();
     const location = useLocation();
 
     if (!isAuthenticated) {
-        return (<Navigate
-                to="/login"
-                replace
-                state={{ from: location }}
-            />
+        return (<Navigate to="/login" replace state={{ from: location }}/>
         );
     }
 
@@ -34,6 +30,7 @@ export default function ProtectedRoute({ allowedRoles = undefined, allowedCapabi
             return <Navigate to="/cars" replace />;
         }
     }
-
     return <Outlet />;
 }
+
+
