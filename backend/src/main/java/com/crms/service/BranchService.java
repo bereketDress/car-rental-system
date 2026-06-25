@@ -64,7 +64,6 @@ public class BranchService {
             throw new RuntimeException("Branch not found: " + id);
         }
 
-        jdbcTemplate.update("UPDATE manager SET branch_id = NULL WHERE branch_id = ?", id);
         jdbcTemplate.update("UPDATE staff SET branch_id = NULL WHERE branch_id = ?", id);
         jdbcTemplate.update("UPDATE car SET branch_id = NULL WHERE branch_id = ?", id);
 

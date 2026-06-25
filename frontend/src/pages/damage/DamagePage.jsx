@@ -20,8 +20,8 @@ export default function DamagesPage() {
     };
 
     return (
-        <div className="p-6">
-            <h1 className="mb-6 text-3xl font-bold">
+        <div className="mx-auto max-w-6xl p-6">
+            <h1 className="mb-6 text-3xl font-bold text-gray-900">
                 Damage Reports
             </h1>
 

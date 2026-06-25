@@ -10,16 +10,17 @@
   </parent>
 
   <groupId>com.App</groupId>
-  <artifactId>SWEProject</artifactId>
+  <artifactId>backend</artifactId>
   <version>1.0</version>
   <packaging>jar</packaging>
 
-  <name>SWEProject</name>
+  <name>backend</name>
   <url>http://maven.apache.org</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <java.version>21</java.version>
+    <lombok.version>1.18.46</lombok.version>
   </properties>
 
   <dependencies>
@@ -28,11 +29,11 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
+
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
@@ -52,6 +53,7 @@
       <version>0.11.5</version>
       <scope>runtime</scope>
     </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
@@ -63,14 +65,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.46</version>
+      <version>${lombok.version}</version>
       <optional>true</optional>
     </dependency>
 
@@ -91,6 +88,12 @@
       <artifactId>testng</artifactId>
       <version>7.10.2</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 
@@ -128,7 +131,7 @@
             <path>
               <groupId>org.projectlombok</groupId>
               <artifactId>lombok</artifactId>
-              <version>1.18.46</version>
+              <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
         </configuration>

@@ -7,7 +7,6 @@ public record StaffRequest(
         @NotBlank String name,
         @NotBlank String role,
         @NotBlank String email,
-        @NotBlank String phone,
-        String password
+        @NotBlank String phone
 
 ) {}

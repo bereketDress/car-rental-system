@@ -52,80 +52,115 @@ export default function CarForm({ onSave, editingCar, onCancel }) {
         setForm(emptyCar);
     };
 
+    const inputClass = "w-full rounded border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+    const labelClass = "grid gap-1 text-sm font-medium text-gray-700";
+
     return (
-        <form onSubmit={save} className="mb-6 grid gap-2 md:grid-cols-4">
-            <input
-                value={form.plateNumber}
-                onChange={(e) => updateField("plateNumber", e.target.value)}
-                placeholder="Plate number"
-                className="border p-2"
-            />
+        <form onSubmit={save} className="mb-8 rounded border border-gray-200 bg-white p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">
+                    {editingCar ? "Edit Vehicle" : "Add Vehicle"}
+                </h2>
+            </div>
 
-            <input
-                value={form.brand}
-                onChange={(e) => updateField("brand", e.target.value)}
-                placeholder="Brand"
-                className="border p-2"
-                required
-            />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <label className={labelClass}>
+                    <span>Plate number</span>
+                    <input
+                        value={form.plateNumber}
+                        onChange={(e) => updateField("plateNumber", e.target.value)}
+                        placeholder="AA-10001"
+                        className={inputClass}
+                    />
+                </label>
 
-            <input
-                value={form.model}
-                onChange={(e) => updateField("model", e.target.value)}
-                placeholder="Model"
-                className="border p-2"
-                required
-            />
+                <label className={labelClass}>
+                    <span>Brand</span>
+                    <input
+                        value={form.brand}
+                        onChange={(e) => updateField("brand", e.target.value)}
+                        placeholder="Toyota"
+                        className={inputClass}
+                        required
+                    />
+                </label>
 
-            <input
-                value={form.year}
-                onChange={(e) => updateField("year", e.target.value)}
-                type="number"
-                placeholder="Year"
-                className="border p-2"
-                required
-            />
+                <label className={labelClass}>
+                    <span>Model</span>
+                    <input
+                        value={form.model}
+                        onChange={(e) => updateField("model", e.target.value)}
+                        placeholder="Corolla"
+                        className={inputClass}
+                        required
+                    />
+                </label>
 
-            <input
-                value={form.mileage}
-                onChange={(e) => updateField("mileage", e.target.value)}
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="Mileage"
-                className="border p-2"
-                required
-            />
+                <label className={labelClass}>
+                    <span>Year</span>
+                    <input
+                        value={form.year}
+                        onChange={(e) => updateField("year", e.target.value)}
+                        type="number"
+                        placeholder="2026"
+                        className={inputClass}
+                        required
+                    />
+                </label>
 
-            <input
-                value={form.dailyRate}
-                onChange={(e) => updateField("dailyRate", e.target.value)}
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Daily rate"
-                className="border p-2"
-                required
-            />
+                <label className={labelClass}>
+                    <span>Mileage</span>
+                    <input
+                        value={form.mileage}
+                        onChange={(e) => updateField("mileage", e.target.value)}
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="0"
+                        className={inputClass}
+                        required
+                    />
+                </label>
 
-            <input
-                value={form.carType}
-                onChange={(e) => updateField("carType", e.target.value)}
-                placeholder="Car type"
-                className="border p-2"
-            />
+                <label className={labelClass}>
+                    <span>Daily rate</span>
+                    <input
+                        value={form.dailyRate}
+                        onChange={(e) => updateField("dailyRate", e.target.value)}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        className={inputClass}
+                        required
+                    />
+                </label>
 
-            <select
-                value={form.availability}
-                onChange={(e) => updateField("availability", e.target.value)}
-                className="border p-2"
-            >
-                <option value="AVAILABLE">Available</option>
-                <option value="UNAVAILABLE">Unavailable</option>
-            </select>
+                <label className={labelClass}>
+                    <span>Car type</span>
+                    <input
+                        value={form.carType}
+                        onChange={(e) => updateField("carType", e.target.value)}
+                        placeholder="Sedan"
+                        className={inputClass}
+                    />
+                </label>
 
-            <div className="flex gap-2 md:col-span-4">
-                <button className="rounded bg-blue-600 px-4 py-2 text-white">
+                <label className={labelClass}>
+                    <span>Status</span>
+                    <select
+                        value={form.availability}
+                        onChange={(e) => updateField("availability", e.target.value)}
+                        className={inputClass}
+                    >
+                        <option value="AVAILABLE">Available</option>
+                        <option value="UNAVAILABLE">Unavailable</option>
+                    </select>
+                </label>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+                <button className="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
                     {editingCar ? "Update Vehicle" : "Add Vehicle"}
                 </button>
 
@@ -133,7 +168,7 @@ export default function CarForm({ onSave, editingCar, onCancel }) {
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="rounded border px-4 py-2"
+                        className="rounded border border-gray-300 px-4 py-2 font-medium text-gray-900 hover:bg-gray-50"
                     >
                         Cancel
                     </button>

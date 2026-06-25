@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.List;
 
@@ -17,6 +18,10 @@ public class StaffService {
 
     private final StaffRepository staffRepository;
     private final PasswordEncoder passwordEncoder;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String TEMPORARY_PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
 
     public List<StaffResponse> getAll() {
         return staffRepository.findAll().stream()
@@ -53,12 +58,9 @@ public class StaffService {
         staff.setName(request.name());
         staff.setEmail(request.email());
         staff.setPhone(request.phone());
-        staff.setPassword(request.password());
         staff.setRole("STAFF");
-
-        if (staff.getPassword() != null && !staff.getPassword().isBlank()) {
-            staff.setPassword(passwordEncoder.encode(staff.getPassword()));
-        }
+        String temporaryPassword = generateTemporaryPassword();
+        staff.setPassword(passwordEncoder.encode(temporaryPassword));
 
         Staff saved = staffRepository.save(staff);
 
@@ -69,7 +71,8 @@ public class StaffService {
                 saved.getEmail(),
                 saved.getPhone(),
                 Collections.emptyList(),
-                Collections.emptyList()
+                Collections.emptyList(),
+                temporaryPassword
         );
     }
 
@@ -82,13 +85,6 @@ public class StaffService {
         existing.setRole("STAFF");
         existing.setEmail(request.email());
         existing.setPhone(request.phone());
-
-        if (request.password() != null &&
-                !request.password().isBlank()) {
-            existing.setPassword(
-                    passwordEncoder.encode(request.password())
-            );
-        }
 
         Staff saved = staffRepository.save(existing);
 
@@ -111,5 +107,14 @@ public class StaffService {
         staffRepository.delete(staff);
 
         return true;
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMPORARY_PASSWORD_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(TEMPORARY_PASSWORD_CHARS.length());
+            password.append(TEMPORARY_PASSWORD_CHARS.charAt(index));
+        }
+        return password.toString();
     }
 }

@@ -6,7 +6,6 @@ const emptyStaff = {
     name: "",
     email: "",
     phone: "",
-    password: "",
     branchId: "",
 };
 
@@ -15,7 +14,6 @@ function toPayload(form) {
         name: form.name,
         email: form.email,
         phone: form.phone,
-        password: form.password,
         role: "STAFF",
         branch: form.branchId ? { branchId: Number(form.branchId) } : null,
     };
@@ -26,7 +24,6 @@ function fromStaff(staff) {
         name: staff.name ?? "",
         email: staff.email ?? "",
         phone: staff.phone ?? "",
-        password: "",
         branchId: staff.branch?.branchId ? String(staff.branch.branchId) : "",
     };
 }
@@ -76,8 +73,12 @@ export default function StaffPage() {
                 await staffService.update(editing.staffId, toPayload(form));
                 setMessage("Staff member updated.");
             } else {
-                await staffService.create(toPayload(form));
-                setMessage("Staff member added.");
+                const response = await staffService.create(toPayload(form));
+                setMessage(
+                    response.data?.temporaryPassword
+                        ? `Staff member added. Temporary password: ${response.data.temporaryPassword}`
+                        : "Staff member added."
+                );
             }
 
             clear();
@@ -107,7 +108,7 @@ export default function StaffPage() {
                 <p className="mb-4 rounded bg-gray-50 p-3 text-gray-700">{message}</p>
             )}
 
-            <form onSubmit={save} className="mb-6 grid gap-2 md:grid-cols-5">
+            <form onSubmit={save} className="mb-6 grid gap-2 md:grid-cols-4">
                 <input
                     value={form.name}
                     onChange={(e) => updateField("name", e.target.value)}
@@ -132,15 +133,6 @@ export default function StaffPage() {
                     className="border p-2"
                 />
 
-                <input
-                    value={form.password}
-                    onChange={(e) => updateField("password", e.target.value)}
-                    type="password"
-                    placeholder={editing ? "New password optional" : "Password"}
-                    className="border p-2"
-                    required={!editing}
-                />
-
                 <select
                     value={form.branchId}
                     onChange={(e) => updateField("branchId", e.target.value)}
@@ -154,7 +146,7 @@ export default function StaffPage() {
                     ))}
                 </select>
 
-                <div className="flex gap-2 md:col-span-5">
+                <div className="flex gap-2 md:col-span-4">
                     <button className="rounded bg-blue-600 px-4 py-2 text-white">
                         {editing ? "Update Staff" : "Add Staff"}
                     </button>
