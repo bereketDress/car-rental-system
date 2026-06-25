@@ -63,7 +63,7 @@ public class RentalService {
 
         Rental saved = rentalRepository.save(rental);
         reservation.setRental(saved);
-        reservation.setStatus("CONVERTED");
+        reservation.setStatus("RENTED");
         reservationRepository.save(reservation);
 
         if (customer != null) {

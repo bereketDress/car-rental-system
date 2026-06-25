@@ -262,7 +262,7 @@ Add-FlowBox $slide "PENDING" 164 430 110 46 $Color.Orange | Out-Null
 Add-Arrow $slide 274 453 348 453
 Add-FlowBox $slide "CONFIRMED" 348 430 130 46 $Color.Blue | Out-Null
 Add-Arrow $slide 478 453 552 453
-Add-FlowBox $slide "CONVERTED" 552 430 130 46 $Color.Green | Out-Null
+Add-FlowBox $slide "RENTED" 552 430 130 46 $Color.Green | Out-Null
 Add-Arrow $slide 682 453 756 453
 Add-FlowBox $slide "ACTIVE Rental" 756 430 130 46 $Color.Navy | Out-Null
 
@@ -389,9 +389,9 @@ Add-TableSlide $presentation "seed.sql Lines 26-46" @(
 Add-TableSlide $presentation "seed.sql Lines 48-70" @(
     @("48", "Section label for reservations."),
     @("49", "Reservation INSERT defines reservation date, pickup date, status, customer, and staff."),
-    @("50", "Reservation 1 is CONVERTED for customer 1 and staff 1."),
+    @("50", "Reservation 1 is RENTED for customer 1 and staff 1."),
     @("51", "Reservation 2 is PENDING for customer 2 and staff 2."),
-    @("52", "Reservation 3 is CONVERTED for customer 3 and staff 3."),
+    @("52", "Reservation 3 is RENTED for customer 3 and staff 3."),
     @("54", "Section label for reservation-to-car join table."),
     @("55", "car_reservation INSERT defines many-to-many link columns."),
     @("56-58", "Links reservations 1, 2, 3 to cars 1, 2, 4."),

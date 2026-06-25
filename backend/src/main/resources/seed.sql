@@ -40,10 +40,12 @@ ON CONFLICT (car_id) DO NOTHING;
 INSERT INTO reservation
 (reservation_id, reservation_date, pickup_date, status, customer_id)
 VALUES
-    (1, '2026-06-01', '2026-06-10', 'CONVERTED', 1),
+    (1, '2026-06-01', '2026-06-10', 'RENTED', 1),
     (2, '2026-06-05', '2026-06-15', 'PENDING', 2),
-    (3, '2026-06-08', '2026-06-12', 'CONVERTED', 3)
+    (3, '2026-06-08', '2026-06-12', 'RENTED', 3)
 ON CONFLICT (reservation_id) DO NOTHING;
+
+UPDATE reservation SET status = 'RENTED' WHERE status = 'CONVERTED';
 
 
 create table car_reservation
