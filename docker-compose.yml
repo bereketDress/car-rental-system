@@ -1,23 +1,21 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: crms_postgres
     environment:
-      POSTGRES_DB: sweDB
+      POSTGRES_DB: SWEProjectDB
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    image: fekadie/sweproject-backend:latest
     container_name: crms_backend
     ports:
       - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sweDB
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/SWEProjectDB
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 1234
       DB_PASSWORD: 1234
@@ -25,12 +23,10 @@ services:
       - postgres
 
   frontend:
-    build: ./frontend
+    image: fekadie/sweproject-frontend:latest
     container_name: crms_frontend
     ports:
       - "5173:5173"
-    environment:
-      VITE_API_BASE_URL: http://localhost:8081
     depends_on:
       - backend
 
