@@ -26,7 +26,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC = {
             "/api/auth/**",
             "/api/stripe/config",
-            "/api/customers/register"
+            "/api/customers/register",
+            "/api/chatbot/**"
     };
 
     private static final String[] MANAGER = {

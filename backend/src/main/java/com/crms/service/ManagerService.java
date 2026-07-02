@@ -6,18 +6,26 @@ import com.crms.dto.manager.ManagerRequest;
 import com.crms.dto.manager.ManagerResponse;
 import com.crms.model.Branch;
 import com.crms.model.Car;
+import com.crms.model.Customer;
 import com.crms.model.Manager;
+import com.crms.model.Payment;
+import com.crms.model.Rental;
 import com.crms.repository.BranchRepository;
 import com.crms.repository.CarRepository;
+import com.crms.repository.CustomerRepository;
 import com.crms.repository.ManagerRepository;
+import com.crms.repository.PaymentRepository;
+import com.crms.repository.RentalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +34,9 @@ public class ManagerService {
     private final ManagerRepository managerRepository;
     private final BranchRepository branchRepository;
     private final CarRepository carRepository;
+    private final RentalRepository rentalRepository;
+    private final CustomerRepository customerRepository;
+    private final PaymentRepository paymentRepository;
 
     public List<ManagerResponse> getAll() {
         return managerRepository.findAll()
@@ -142,11 +153,88 @@ public class ManagerService {
                 .filter(car -> "AVAILABLE".equalsIgnoreCase(car.getAvailability()))
                 .count();
 
+        List<Rental> rentals = rentalsForCars(branchId, cars);
+        long activeRentals = rentals.stream()
+                .filter(rental -> "ACTIVE".equalsIgnoreCase(rental.getStatus()))
+                .count();
+        long completedRentals = rentals.stream()
+                .filter(rental -> "RETURNED".equalsIgnoreCase(rental.getStatus()))
+                .count();
+
         report.put("branchId", branchId);
         report.put("totalFleetSize", cars.size());
         report.put("availableCars", availableCars);
         report.put("rentedCars", cars.size() - availableCars);
+        report.put("totalRentals", rentals.size());
+        report.put("activeRentals", activeRentals);
+        report.put("completedRentals", completedRentals);
+        report.put("totalCustomers", totalCustomers(branchId, rentals));
+        report.put("totalRevenue", totalRevenue(branchId, rentals));
         return report;
+    }
+
+    private List<Rental> rentalsForCars(Long branchId, List<Car> cars) {
+        if (branchId == null) {
+            return rentalRepository.findAll();
+        }
+
+        Set<Long> rentalIds = new HashSet<>();
+        List<Rental> rentals = new ArrayList<>();
+
+        for (Car car : cars) {
+            if (car.getRentals() == null) {
+                continue;
+            }
+
+            for (Rental rental : car.getRentals()) {
+                if (rental.getRentalId() != null && rentalIds.add(rental.getRentalId())) {
+                    rentals.add(rental);
+                }
+            }
+        }
+
+        return rentals;
+    }
+
+    private long totalCustomers(Long branchId, List<Rental> rentals) {
+        if (branchId == null) {
+            return customerRepository.count();
+        }
+
+        Set<Long> rentalIds = new HashSet<>();
+        rentals.stream()
+                .map(Rental::getRentalId)
+                .forEach(rentalIds::add);
+
+        return customerRepository.findAll().stream()
+                .filter(customer -> customer.getRentals() != null)
+                .filter(customer -> customer.getRentals().stream()
+                        .map(Rental::getRentalId)
+                        .anyMatch(rentalIds::contains))
+                .count();
+    }
+
+    private double totalRevenue(Long branchId, List<Rental> rentals) {
+        if (branchId == null) {
+            return paymentRepository.findAll().stream()
+                    .filter(this::completedPayment)
+                    .map(Payment::getAmount)
+                    .filter(amount -> amount != null)
+                    .mapToDouble(Float::doubleValue)
+                    .sum();
+        }
+
+        return rentals.stream()
+                .map(Rental::getPayment)
+                .filter(this::completedPayment)
+                .map(Payment::getAmount)
+                .filter(amount -> amount != null)
+                .mapToDouble(Float::doubleValue)
+                .sum();
+    }
+
+    private boolean completedPayment(Payment payment) {
+        return payment != null && "COMPLETED".equalsIgnoreCase(payment.getStatus());
     }
 
     // -----------------------------

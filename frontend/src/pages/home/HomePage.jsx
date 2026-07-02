@@ -1,7 +1,6 @@
-
-// - Landing page of the application.
-// - Introduces the Car Rental Management System.
-// - Highlights main features.
+// Landing page of the application.
+// Introduces the Car Rental Management System.
+// Highlights main features.
 
 export default function HomePage() {
     const features = [

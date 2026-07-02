@@ -1,5 +1,6 @@
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://98.88.253.209:8081";
+const defaultApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8081`;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? defaultApiBaseUrl;
 const AUTH_STORAGE_KEY = "crms_auth";
 
 let currentAuth = readStoredAuth();

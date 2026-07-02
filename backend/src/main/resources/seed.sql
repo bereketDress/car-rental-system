@@ -9,15 +9,19 @@ INSERT INTO branch (branch_id, name, phone, street, city, zipcode) VALUES
 ON CONFLICT (branch_id) DO NOTHING;
 
 INSERT INTO manager (manager_id, name, phone, email, password) VALUES
-                                                                   (1, 'Abebe Bikila', '0911000001', 'abebe@crms.com', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu'),
+                                                                   (1, 'James Smith', '0911000001', 'james@crms.com', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu'),
                                                                    (2, 'Dawit Lema', '0911000002', 'dawit@crms.com', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu')
 ON CONFLICT (manager_id) DO NOTHING;
+
+UPDATE manager SET name = 'James Smith', email = 'james@crms.com' WHERE manager_id = 1;
 
 INSERT INTO staff (staff_id, name, role, email, phone, password, branch_id) VALUES
                                                                                 (1, 'Kassa Tessema', 'STAFF', 'kassa@crms.com', '0911111111', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu', 1),
                                                                                 (2, 'Sara Bekele', 'STAFF', 'sara@crms.com', '0911222222', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu', 2),
-                                                                                (3, 'Marta Alemu', 'STAFF', 'marta@crms.com', '0911333333', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu', 3)
+                                                                                (3, 'Andrew Taylor', 'STAFF', 'andrew@crms.com', '0911333333', '$2a$10$r71PF/uSjFaXGgFN3WK67OGATjEFCWMH6vGpuzxfZfmVcJA5bdyfu', 3)
 ON CONFLICT (staff_id) DO NOTHING;
+
+UPDATE staff SET name = 'Andrew Taylor', email = 'andrew@crms.com' WHERE staff_id = 3;
 
 INSERT INTO customer
 (customer_id, name, email, password, phone, license_no, outstanding_balance, street, city, zipcode)

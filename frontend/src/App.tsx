@@ -16,6 +16,7 @@ import PaymentsPage from "./pages/payment/PaymentsPage";
 import DamagePage from "./pages/damage/DamagePage";
 import ReportsPage from "./pages/report/ReportsPage";
 import StaffPage from "./pages/staff/StaffPage";
+import Chatbot from "./components/chatbot/Chatbot";
 
 export default function App() {
     return (
@@ -46,6 +47,8 @@ export default function App() {
                     <Route path="/reports" element={<ReportsPage />} />
                 </Route>
             </Routes>
+            {/* Chatbot appears on every page */}
+            <Chatbot />
         </AuthProvider>
     );
 }
